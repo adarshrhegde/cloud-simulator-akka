@@ -1,4 +1,4 @@
-package com.uic.cloudsimulator.actors
+package com.cloudsimulator.entities.cloudlet
 
 import akka.actor.{Actor, ActorLogging}
 
