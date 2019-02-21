@@ -1,9 +1,11 @@
 package com.cloudsimulator.entities
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.Datacenter
+import com.cloudsimulator.entities.datacenter.DataCenter
 
-class CIS(id : Long, dcList : List[Datacenter]) extends Actor with ActorLogging {
+case class CISI(id : Long, dcList : List[String])
+
+class CIS(id : Long, dcList : List[DataCenter]) extends Actor with ActorLogging {
 
   override def receive: Receive = ???
 

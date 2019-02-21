@@ -13,3 +13,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.5" % Test,
   "com.typesafe.akka" %% "akka-testkit" % "2.5.19" % Test
 )
+
+// following setting is used to get more detailed errors for pureconfig config load failures
+scalacOptions += "-Xmacro-settings:materialize-derivations"
