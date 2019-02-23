@@ -1,15 +1,10 @@
 package com.cloudsimulator.config
 
-import com.cloudsimulator.entities.{CIS, CISI}
-import com.cloudsimulator.entities.datacenter.DataCenter
-import com.cloudsimulator.entities.host.Host
-import com.typesafe.config.ConfigFactory
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-//case class Config(dataCenterList : List[DataCenter], hostList : List[Host], cis : CISI)
+case class Config(dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
 
-case class Config(config: String)
 object Config {
 
   def loadConfig : Option[Config] = {
@@ -28,3 +23,14 @@ object Config {
 
   }
 }
+
+
+case class DataCenterConfig(id : Long, location : String)
+
+case class VmConfig(id : Long, userId : Long, cloudletScheduler : String, mips : Long,
+                   noOfPes : Int, ram : Int, bw : Double)
+
+case class CISConfig(id : Long)
+
+case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
+                     ramProvisioner : String, vmScheduler : String, noOfPes : Int, nicCapacity: Double)
