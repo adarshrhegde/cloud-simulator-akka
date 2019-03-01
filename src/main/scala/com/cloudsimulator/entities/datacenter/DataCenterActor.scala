@@ -1,7 +1,7 @@
 package com.cloudsimulator.entities.datacenter
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.common.Messages
+import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
@@ -25,7 +25,7 @@ class DataCenterActor(id: Long, hostList: List[HostActor], vmList: List[VmActor]
 
     case RegisterWithCIS => {
       log.info("DataCenterActor::DataCenterActor:RegisterWithCIS")
-      context.actorSelection(ActorUtility.getActorRef("CIS")) ! Messages.DcRegistration(id)
+      context.actorSelection(ActorUtility.getActorRef("CIS")) ! DcRegistration(id)
       log.info("DataCenterActor::DataCenterActor:RegisterWithCIS after")
     }
 /*

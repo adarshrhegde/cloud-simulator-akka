@@ -1,9 +1,11 @@
 package com.cloudsimulator.entities
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.common.Messages.DcRegistration
+
 
 import scala.collection.mutable.ListBuffer
+
+final case class DcRegistration(id: Long)
 
 class CISActor(id: Long) extends Actor with ActorLogging {
 
@@ -23,7 +25,7 @@ class CISActor(id: Long) extends Actor with ActorLogging {
     case _ => log.info(s"CIS Actor created $id")
   }
 
-  def registerDc(id: Long): ListBuffer[Long] = {
+  def registerDc(id: Long): Unit = {
     dcList += id
   }
 

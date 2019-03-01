@@ -19,7 +19,6 @@ object MainApp extends App {
   val cisActor = system.actorOf(Props(new CISActor(config.cis.id)), "CIS")
 
   config.dataCenterList.foreach(dc => {
-
     system.actorOf(Props(new DataCenterActor(dc.id, List(), List(), dc.location, Map())), "dc-" + dc.id)
   })
 
