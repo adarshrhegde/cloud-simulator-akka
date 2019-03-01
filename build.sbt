@@ -12,7 +12,7 @@ libraryDependencies ++= Seq(
 
   //Logging with Actors
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
 
   //Scala's wrapper of Type safe config
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,

@@ -1,7 +1,7 @@
 package com.cloudsimulator.entities
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.DataCenterActor
+import com.cloudsimulator.common.Messages.DcRegistration
 
 import scala.collection.mutable.ListBuffer
 
@@ -9,12 +9,14 @@ class CISActor(id: Long) extends Actor with ActorLogging {
 
   var dcList: ListBuffer[Long] = ListBuffer()
 
-  final case class DcRegistration(id: Long)
+  override def preStart(): Unit = {
+    log.info("CISActor preStart()")
+  }
 
   override def receive: Receive = {
 
     case DcRegistration(id: Long) => {
-      log.info("CIS::DcRegistration")
+      log.info("DataCenterActor::CISActor:DcRegistration")
       registerDc(id)
     }
 
