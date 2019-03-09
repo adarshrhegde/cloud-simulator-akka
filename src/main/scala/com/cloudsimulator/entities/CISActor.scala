@@ -1,7 +1,8 @@
 package com.cloudsimulator.entities
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.loadbalancer.RespondDataCenterList
+import com.cloudsimulator.entities.loadbalancer.ReceiveDataCenterList
+import com.cloudsimulator.entities.payload.VMPayload
 
 import scala.collection.mutable.ListBuffer
 
@@ -20,9 +21,9 @@ class CISActor(id: Long) extends Actor with ActorLogging {
       registerDc(id)
     }
 
-    case RequestDataCenterList(id) => {
+    case RequestDataCenterList(vmPayloads : List[VMPayload]) => {
       log.info(s"LoadBalancerActor::CISActor:RequestDataCenterList($id)")
-      RespondDataCenterList(dcList.toList, id)
+      ReceiveDataCenterList(vmPayloads, dcList.toList)
     }
 
     case _ => log.info(s"CIS Actor created $id")
@@ -36,7 +37,7 @@ class CISActor(id: Long) extends Actor with ActorLogging {
 }
 
 
-case class RequestDataCenterList(id : Long)
+case class RequestDataCenterList(vmPayloads : List[VMPayload])
 
 
 case class DcRegistration(id: Long)
