@@ -9,7 +9,7 @@ class DataCenterSelectionPolicyActor(selectionPolicy : DataCenterSelectionPolicy
 
   override def receive: Receive = {
 
-    case FindDataCenterForVm(vmPayloads : List[VMPayload], dcList) => {
+    case FindDataCenterForVm(id, vmPayloads : List[VMPayload], dcList) => {
 
       val dc : Option[Long] = selectionPolicy.selectDC(dcList)
     }
@@ -23,4 +23,4 @@ object DataCenterSelectionPolicyActor {
     Props(DataCenterSelectionPolicyActor.getClass, selectionPolicy)
 }
 
-case class FindDataCenterForVm(vmPayloads : List[VMPayload], dcList : List[Long])
+case class FindDataCenterForVm(requestId : Long, vmPayloads : List[VMPayload], dcList : List[Long])

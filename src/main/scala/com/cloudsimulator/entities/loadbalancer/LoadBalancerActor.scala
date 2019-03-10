@@ -1,14 +1,21 @@
 package com.cloudsimulator.entities.loadbalancer
 
 import akka.actor.{Actor, ActorLogging, ActorSelection}
+import com.cloudsimulator.cloudsimutils.RequestStatus
 import com.cloudsimulator.entities.RequestDataCenterList
-import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload, WorkloadPayload}
+import com.cloudsimulator.entities.datacenter.RequestCreateVms
+import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
 import com.cloudsimulator.entities.policies.{DataCenterSelectionPolicyActor, FindDataCenterForVm, SimpleDataCenterSelectionPolicy}
 import com.cloudsimulator.utils.ActorUtility
 
+/**
+  * LoadBalancer actor
+  * Entry point into the cloud architecture
+  * Accepts requests from the user
+  */
 class LoadBalancerActor extends Actor with ActorLogging {
 
-  private val requestIdMap : Map[Long, String] = Map()
+  private val requestIdMap : Map[Long, RequestStatus.Value] = Map()
 
   override def receive: Receive = {
 
@@ -21,23 +28,48 @@ class LoadBalancerActor extends Actor with ActorLogging {
 
     }
 
+    /**
+      * User request to create VMs
+      */
     case VMRequest(id, vmPayloads : List[VMPayload]) => {
 
-      requestIdMap + (id -> "INPROGRESS")
+      log.info(s"User::LoadBalancerActor:VMRequest:$id")
+      requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
       val cis : ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
-      cis ! RequestDataCenterList(vmPayloads)
+      // Request CIS to send DataCenter list
+      cis ! RequestDataCenterList(id, vmPayloads)
 
     }
 
-    case ReceiveDataCenterList(vmPayloads : List[VMPayload], dcList) => {
+    /**
+      * Receive list of DataCenters
+      * Sender : CIS
+      */
+    case ReceiveDataCenterList(id, vmPayloads : List[VMPayload], dcList) => {
+
+      log.info(s"CISActor::LoadBalancerActor:ReceiveDataCenterList:$id")
 
       val selectionPolicy : ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
-      selectionPolicy ! FindDataCenterForVm(vmPayloads, dcList)
+      // Request DataCenter selection policy to select DataCenter from provided list
+      selectionPolicy ! FindDataCenterForVm(id, vmPayloads, dcList)
     }
 
+    /**
+      * Receive the selected DataCenter for creating the VM
+      * Sender: DataCenterSelectionPolicy actor
+      */
+    case ReceiveDataCenterForVm(id, vmPayloads : List[VMPayload], dc) => {
+
+      log.info(s"DataCenterSelectionPolicyActor::LoadBalancerActor:ReceiveDataCenterForVm:$id")
+
+      val dc : ActorSelection = context.actorSelection(ActorUtility.getActorRef(s"dc-$dc"))
+
+      // Request DataCenter to create VMs in its hosts
+      dc ! RequestCreateVms(id, vmPayloads)
+    }
 
   }
 }
@@ -46,4 +78,6 @@ case class CloudletRequest(requestId : Long, cloudletPayloads: List[CloudletPayl
 
 case class VMRequest(requestId : Long,  vmPayloads : List[VMPayload])
 
-case class ReceiveDataCenterList(vmPayloads : List[VMPayload], dcList : List[Long])
+case class ReceiveDataCenterList(requestId : Long, vmPayloads : List[VMPayload], dcList : List[Long])
+
+case class ReceiveDataCenterForVm(requestId : Long, vmPayloads : List[VMPayload], dc : Long)
