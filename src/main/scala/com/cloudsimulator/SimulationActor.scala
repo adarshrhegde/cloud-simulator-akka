@@ -45,7 +45,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       config.hostList.foreach(host => {
 
         context.actorOf(Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
-          List(), host.bwProvisioner, host.ramProvisioner, host.vmScheduler, host.noOfPes, host.nicCapacity)))
+          List(), host.bwProvisioner, host.ramProvisioner, host.vmScheduler, host.availableNoOfPes, host.nicCapacity,
+          host.availableRam, host.availableStorage, host.availableBw)))
       })
 
       context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")
