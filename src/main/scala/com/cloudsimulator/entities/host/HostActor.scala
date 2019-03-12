@@ -4,6 +4,8 @@ import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.vm.VmActor
 
+import scala.collection.mutable.ListBuffer
+
 
 /**
   * Host Actor
@@ -20,10 +22,12 @@ import com.cloudsimulator.entities.vm.VmActor
   * @param availableStorage
   * @param availableBw
   */
-class HostActor(id : Long, dataCenterId : Long, hypervisor : String, vmList : List[VmActor], bwProvisioner : String,
+class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
                 ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, nicCapacity: Double,
                 availableRam : Long, availableStorage : Long, availableBw : Double)
   extends Actor with ActorLogging {
+
+  private val vmList : ListBuffer[VmActor] = ListBuffer()
 
   override def receive: Receive = {
 

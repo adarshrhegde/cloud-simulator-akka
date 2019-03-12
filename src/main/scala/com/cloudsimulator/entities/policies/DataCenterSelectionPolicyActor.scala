@@ -20,7 +20,7 @@ class DataCenterSelectionPolicyActor(selectionPolicy : DataCenterSelectionPolicy
 object DataCenterSelectionPolicyActor {
 
   def props(selectionPolicy: DataCenterSelectionPolicy) : Props =
-    Props(DataCenterSelectionPolicyActor.getClass, selectionPolicy)
+    Props(classOf[DataCenterSelectionPolicyActor], selectionPolicy)
 }
 
 case class FindDataCenterForVm(requestId : Long, vmPayloads : List[VMPayload], dcList : List[Long])

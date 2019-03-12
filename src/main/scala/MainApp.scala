@@ -1,5 +1,5 @@
 import akka.actor.{ActorRef, ActorSystem, Props}
-
+import com.cloudsimulator.{SimulationActor, Start}
 import com.cloudsimulator.config.{CISConfig, Config}
 import com.cloudsimulator.entities.CISActor
 import com.cloudsimulator.entities.datacenter.DataCenterActor
@@ -14,13 +14,14 @@ object MainApp extends App {
 
   System.out.println(config)
 
-//  val simulationActor = system.actorOf(Props(new SimulationActor(1)), ActorUtility.simulationActor)
+  val simulationActor = system.actorOf(Props(new SimulationActor(1)), ActorUtility.simulationActor)
 
-  val cisActor = system.actorOf(Props(new CISActor(config.cis.id)), "CIS")
+  simulationActor ! Start
+  /*val cisActor = system.actorOf(Props(new CISActor(config.cis.id)), "CIS")
 
   config.dataCenterList.foreach(dc => {
     system.actorOf(Props(new DataCenterActor(dc.id, List(), List(), dc.location, Map())), "dc-" + dc.id)
-  })
+  })*/
 
   //  config.hostList.foreach(host => {
   //

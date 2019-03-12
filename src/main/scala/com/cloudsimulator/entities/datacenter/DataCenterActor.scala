@@ -1,6 +1,6 @@
 package com.cloudsimulator.entities.datacenter
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
@@ -18,11 +18,17 @@ import scala.collection.mutable.ListBuffer
   * @param location
   * @param vmToHostMap
   */
-class DataCenterActor(id: Long, hostList: List[HostActor], vmList: List[VmActor],
-                      location: String, vmToHostMap: Map[Long, Long])
+class DataCenterActor(id: Long,
+                      location: String, rootSwitchId : String)
   extends Actor with ActorLogging {
 
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
+
+  private val hostList: ListBuffer[String] = ListBuffer()
+
+  private val vmList: ListBuffer[VmActor] = ListBuffer()
+
+  private val vmToHostMap: Map[Long, Long] = Map()
 
   override def preStart(): Unit = {
 
@@ -32,6 +38,11 @@ class DataCenterActor(id: Long, hostList: List[HostActor], vmList: List[VmActor]
 
   override def receive: Receive = {
 
+    case CreateHost(hostId, hostProps : Props) => {
+      log.info(s"Creating host $hostId within DataCenter $id")
+      context.actorOf(hostProps, s"host-$hostId")
+      hostList += s"host-$hostId"
+    }
     /*case CisAvailable =>{
       log.info("DataCenterActor::DataCenterActor:preStart()")
       context.actorSelection(ActorUtility.getActorRef(ActorUtility.simulationActor)) ! CisAvailable
@@ -42,7 +53,9 @@ class DataCenterActor(id: Long, hostList: List[HostActor], vmList: List[VmActor]
       */
     case RegisterWithCIS => {
       log.info("DataCenterActor::DataCenterActor:RegisterWithCIS")
-      context.actorSelection(ActorUtility.getActorRef("CIS")) ! DcRegistration(id)
+      //context.actorSelection(ActorUtility.getActorRef("CIS")) ! DcRegistration(id)
+
+      context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) ! DcRegistration(id)
     }
 
     /**
@@ -111,3 +124,5 @@ case class VmAllocationSuccess(vmPayloadTracker : VMPayloadTracker)
 
 case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
                             payloadStatus : VMPayloadStatus.Value)
+
+case class CreateHost(hostId : Long, props : Props)

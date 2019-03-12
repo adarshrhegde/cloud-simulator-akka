@@ -8,7 +8,7 @@ object ActorUtility {
   val rootPath = "akka://CloudSimRM/user/"
 
   def getActorRef(actorPath: String): String = {
-    s"akka://$actorSystemName/user/$actorPath"
+    s"akka://$actorSystemName/user/$simulationActor/$actorPath"
   }
 
 }

@@ -3,7 +3,7 @@ package com.cloudsimulator.config
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-case class Config(dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
+case class Config(rootSwitchId : String, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
 
 object Config {
 
