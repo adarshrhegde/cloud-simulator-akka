@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.policies
 
 import akka.actor.{Actor, ActorLogging, Props}
+import com.cloudsimulator.entities.loadbalancer.ReceiveDataCenterForVm
 import com.cloudsimulator.entities.payload.VMPayload
 
 class DataCenterSelectionPolicyActor(selectionPolicy : DataCenterSelectionPolicy)
@@ -12,6 +13,8 @@ class DataCenterSelectionPolicyActor(selectionPolicy : DataCenterSelectionPolicy
     case FindDataCenterForVm(id, vmPayloads : List[VMPayload], dcList) => {
 
       val dc : Option[Long] = selectionPolicy.selectDC(dcList)
+
+      sender() ! ReceiveDataCenterForVm(id, vmPayloads : List[VMPayload], dc.getOrElse(0))
     }
   }
 

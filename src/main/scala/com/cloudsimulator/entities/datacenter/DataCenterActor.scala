@@ -4,7 +4,9 @@ import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.policies.{RequestVmAllocation, VmAllocationPolicy, VmAllocationPolicyActor}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -39,10 +41,17 @@ class DataCenterActor(id: Long,
   override def receive: Receive = {
 
     case CreateHost(hostId, hostProps : Props) => {
+      log.info("SimulationActor::DataCenterActor:CreateHost")
       log.info(s"Creating host $hostId within DataCenter $id")
-      context.actorOf(hostProps, s"host-$hostId")
-      hostList += s"host-$hostId"
+      val hostActor = context.actorOf(hostProps, s"host-$hostId")
+      hostList += hostActor.path.toStringWithoutAddress
     }
+
+    case CreateVmAllocationPolicy(vmAllocationPolicy) => {
+      log.info("SimulationActor::DataCenterActor:CreateVmAllocationPolicy")
+      context.actorOf(Props(new VmAllocationPolicyActor(vmAllocationPolicy)), "vm-allocation-policy")
+    }
+
     /*case CisAvailable =>{
       log.info("DataCenterActor::DataCenterActor:preStart()")
       context.actorSelection(ActorUtility.getActorRef(ActorUtility.simulationActor)) ! CisAvailable
@@ -61,19 +70,28 @@ class DataCenterActor(id: Long,
     /**
       * Request to create VMs sent by LoadBalancer
       */
-    case RequestCreateVms(id, vmPayloads : List[VMPayload]) => {
+    case RequestCreateVms(networkPacketProperties, id, vmPayloads : List[VMPayload]) => {
 
 
-      log.info(s"LoadBalancerActor::DataCenterActor:RequestCreateVms:$id")
+      log.info(s"RootSwitchActor::DataCenterActor:RequestCreateVms:$id")
+      log.info(s"Request to allocate Vms sent from ${networkPacketProperties.sender}")
 
-      vmPayloads.foreach(vmPayload => {
+      val vmAllocationPolicyActor = context.child("vm-allocation-policy").get
+
+      vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList)
+
+      // old logic to send each payload to each host
+      // to be deleted shortly
+      /*vmPayloads.foreach(vmPayload => {
 
         val payloadTracker = new VMPayloadTracker(id, vmPayload, VMPayloadStatus.NOT_ALLOCATED)
         vmPayloadTrackerList += payloadTracker
 
         log.debug("Received request to create VM " + vmPayload.toString())
+
+
         context.actorSelection("*").forward(CanAllocateVm(payloadTracker))
-      })
+      })*/
 
     }
 
@@ -116,7 +134,8 @@ class DataCenterActor(id: Long,
 
 final case class RegisterWithCIS()
 
-case class RequestCreateVms(requestId : Long, vmPayloads: List[VMPayload])
+case class RequestCreateVms(override val networkPacketProperties: NetworkPacketProperties,
+                            requestId : Long, vmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class CanAllocateVmTrue(vmPayloadTracker : VMPayloadTracker)
 
@@ -126,3 +145,5 @@ case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
                             payloadStatus : VMPayloadStatus.Value)
 
 case class CreateHost(hostId : Long, props : Props)
+
+case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) extends NetworkPacket

@@ -1,5 +1,7 @@
 package com.cloudsimulator.entities.switch
 
+import com.cloudsimulator.entities.network.NetworkPacket
+
 trait Switch {
 
   def processPacketDown(destination : String, cloudSimulatorMessage: NetworkPacket) : Unit
@@ -7,10 +9,5 @@ trait Switch {
 }
 
 
-trait NetworkPacket {
-
-  var sender:String = _
-  var receiver :String = _
-}
 
 //case class NetworkPacket(cloudSimulatorMessage : CloudSimulatorMessage)

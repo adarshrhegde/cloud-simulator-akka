@@ -9,6 +9,6 @@ class SimpleDataCenterSelectionPolicy extends DataCenterSelectionPolicy {
     */
   override def selectDC(dcList: List[Long]): Option[Long] = {
 
-    None
+    Option(dcList(0))
   }
 }

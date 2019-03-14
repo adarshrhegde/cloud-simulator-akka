@@ -59,3 +59,5 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 case class CanAllocateVm(vmPayloadTracker : VMPayloadTracker)
 
 case class AllocateVm(vmPayloadTracker : VMPayloadTracker)
+
+case class SendResourceStatus()

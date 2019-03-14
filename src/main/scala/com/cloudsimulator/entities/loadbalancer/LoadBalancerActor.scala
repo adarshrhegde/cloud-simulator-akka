@@ -6,8 +6,8 @@ import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.RequestCreateVms
 import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
 import com.cloudsimulator.entities.policies.{DataCenterSelectionPolicyActor, FindDataCenterForVm, SimpleDataCenterSelectionPolicy}
-import com.cloudsimulator.entities.switch.{NetworkPacket}
 import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 
 /**
   * LoadBalancer actor
@@ -37,11 +37,10 @@ class LoadBalancerActor(rootSwitchId : String) extends Actor with ActorLogging {
       log.info(s"User::LoadBalancerActor:VMRequest:$id")
       requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
-      //val cis : ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+      val cis : ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
-      val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
       // Request CIS to send DataCenter list
-      rootSwitchActor ! RequestDataCenterList(id, vmPayloads)
+      cis ! RequestDataCenterList(id, vmPayloads)
 
     }
 
@@ -51,7 +50,7 @@ class LoadBalancerActor(rootSwitchId : String) extends Actor with ActorLogging {
       */
     case ReceiveDataCenterList(id, vmPayloads : List[VMPayload], dcList) => {
 
-      log.info(s"RootSwitchActor::LoadBalancerActor:ReceiveDataCenterList:$id")
+      log.info(s"CIS::LoadBalancerActor:ReceiveDataCenterList:$id")
 
       val selectionPolicy : ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
@@ -67,10 +66,16 @@ class LoadBalancerActor(rootSwitchId : String) extends Actor with ActorLogging {
 
       log.info(s"DataCenterSelectionPolicyActor::LoadBalancerActor:ReceiveDataCenterForVm:$id")
 
-      val dcActor : ActorSelection = context.actorSelection(ActorUtility.getActorRef("dc-"+ dc))
+      val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+
+      val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-$dc"))
+
+      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+        dcActor.pathString)
 
       // Request DataCenter to create VMs in its hosts
-      dcActor ! RequestCreateVms(id, vmPayloads)
+      // Send message to root switch to forward to DataCenter
+      rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, vmPayloads)
     }
 
   }

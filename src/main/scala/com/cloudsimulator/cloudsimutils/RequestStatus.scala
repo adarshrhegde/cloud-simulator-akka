@@ -13,5 +13,3 @@ object RequestStatus extends Enumeration {
   }
 
 }
-
-case class Wrap(requestStatus: RequestStatus.Value)
