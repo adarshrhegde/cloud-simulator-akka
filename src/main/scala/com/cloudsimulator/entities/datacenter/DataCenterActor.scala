@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
-import com.cloudsimulator.entities.policies.{RequestVmAllocation, VmAllocationPolicy, VmAllocationPolicyActor}
+import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -95,7 +95,29 @@ class DataCenterActor(id: Long,
 
     }
 
-    case CanAllocateVmTrue(vmPayloadTracker) => {
+
+
+    /**
+      * Receive Vm Allocation decision from Vm Allocation Policy Actor
+      */
+    case receiveVmAllocation: ReceiveVmAllocation => {
+
+      log.info("VmAllocationPolicyActor::DataCenterActor:ReceiveVmAllocation")
+
+      receiveVmAllocation.vmAllocationResult.vmHostMap.foreach(vmHost => {
+
+        // Ask host to allocate vm
+        context.actorSelection(vmHost._2) ! AllocateVm(vmHost._1)
+      })
+
+      // Ask Vm Allocation Policy Actor to change status and accept new requests
+      sender() ! StopProcessing
+
+      // handle failed vms
+
+    }
+
+      /*case CanAllocateVmTrue(vmPayloadTracker) => {
       log.info(s"HostActor::DataCenterActor:CanAllocateVmTrue:$vmPayloadTracker")
 
       vmPayloadTrackerList.filter(tracker => tracker.requestId == vmPayloadTracker.requestId
@@ -121,7 +143,8 @@ class DataCenterActor(id: Long,
       vmPayloadTrackerList += new VMPayloadTracker(vmPayloadTracker.requestId, vmPayloadTracker.vmPayload,
         VMPayloadStatus.ALLOCATED)
 
-    }
+    }*/
+
     /*
     case CisUp =>{
       log.info("DataCenterActor::DataCenterActor:CisUp")
@@ -139,7 +162,7 @@ case class RequestCreateVms(override val networkPacketProperties: NetworkPacketP
 
 case class CanAllocateVmTrue(vmPayloadTracker : VMPayloadTracker)
 
-case class VmAllocationSuccess(vmPayloadTracker : VMPayloadTracker)
+case class VmAllocationSuccess(vmPayload : VMPayload)
 
 case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
                             payloadStatus : VMPayloadStatus.Value)
@@ -147,3 +170,5 @@ case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
 case class CreateHost(hostId : Long, props : Props)
 
 case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) extends NetworkPacket
+
+case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket

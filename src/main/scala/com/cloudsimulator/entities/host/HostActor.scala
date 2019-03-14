@@ -2,6 +2,7 @@ package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, VMPayloadTracker, VmAllocationSuccess}
+import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.vm.VmActor
 
 import scala.collection.mutable.ListBuffer
@@ -47,17 +48,25 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
     }
 
-    case AllocateVm(vmPayloadTracker : VMPayloadTracker) => {
+    case AllocateVm(vmPayload : VMPayload) => {
       log.info(s"LoadBalancerActor::DataCenterActor:AllocateVm:$id")
 
-      // logic for allocation comes here
-      sender() ! VmAllocationSuccess(vmPayloadTracker)
+      // update host resources with vm payload
+      availableNoOfPes -= vmPayload.numberOfPes
+      availableRam -= vmPayload.ram
+      availableStorage -= vmPayload.storage
+      availableBw -= vmPayload.bw
+
+      sender() ! VmAllocationSuccess(vmPayload)
     }
   }
 }
 
 case class CanAllocateVm(vmPayloadTracker : VMPayloadTracker)
 
-case class AllocateVm(vmPayloadTracker : VMPayloadTracker)
+case class AllocateVm(vmPayload : VMPayload)
 
-case class SendResourceStatus()
+case class RequestHostResourceStatus(requestId : Long)
+
+case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
+                        var availableStorage : Long, var availableBw : Double)
