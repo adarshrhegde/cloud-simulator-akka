@@ -49,7 +49,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       // Create DC actors and their respective Vm Allocation policy, Switch children
       config.dataCenterList.foreach(dc => {
 
-        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, rootSwitchName)), "dc-" + dc.id)
+        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, rootSwitchName, "")), "dc-" + dc.id)
         dcList += dcActor.path.toStringWithoutAddress
 
         val vmAllocationPolicy = new SimpleVmAllocationPolicy()

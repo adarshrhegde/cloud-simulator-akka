@@ -1,3 +1,4 @@
+/*
 package com.cloudsimulator.entities.cloudlet
 
 class Cloudlet {
@@ -8,4 +9,4 @@ class Cloudlet {
   var noOfPes : Int = _
   var execStartTime : Double = _
   var execEndTime : Double = _
-}
+}*/

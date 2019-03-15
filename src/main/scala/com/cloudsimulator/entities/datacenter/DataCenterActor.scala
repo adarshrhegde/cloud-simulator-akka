@@ -8,7 +8,8 @@ import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
 import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
+import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
 import com.cloudsimulator.entities.vm.VmActor
@@ -26,7 +27,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param vmToHostMap
   */
 class DataCenterActor(id: Long,
-                      location: String, rootSwitchId : String)
+                      location: String, rootSwitchId: String, cloudletAllocationPolicyId : String)
   extends Actor with ActorLogging {
 
   import context._
@@ -40,9 +41,12 @@ class DataCenterActor(id: Long,
   // this will be used to keep track of requests sent from LBs
   private var requestToLBMap : Map[Long, String] = Map()
 
-  private val vmList: ListBuffer[VmActor] = ListBuffer()
+//  private val vmList: ListBuffer[VmActor] = ListBuffer()
 
-  private val vmToHostMap: Map[Long, Long] = Map()
+
+//  private val vmToHostMap: Map[Long, Long] = Map()
+
+  private val cloudletPayloadTrackerMap:Map[Long,CloudletPayload]=Map()
 
   override def preStart(): Unit = {
 
@@ -202,6 +206,19 @@ class DataCenterActor(id: Long,
 
     }*/
 
+    case ProcessCloudletsOnVm(id,cloudletPayloads) => {
+
+      cloudletPayloadTrackerMap + (id -> cloudletPayloads)
+      context.actorSelection(ActorUtility.getActorRef(cloudletAllocationPolicyId)) !
+        CheckAssignmentOfCloudlets(id,cloudletPayloads,hostList.toList)
+    }
+
+
+    // called after the DC actor is created
+    case CreateCloudletAllocationPolicyActor(id,cloudletAssignmentPolicy:CloudletAssignmentPolicy) =>{
+      context.actorOf(Props(new CloudletAssignmentPolicyActor(cloudletAssignmentPolicy)), s"cloudletAllocationPolicy-$id")
+    }
+
     /*
     case CisUp =>{
       log.info("DataCenterActor::DataCenterActor:CisUp")
@@ -230,3 +247,7 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
 
 case class CreateSwitch(switchType : String, switchId : Long)
+
+case class ProcessCloudletsOnVm(id: Long, cloudletPayloads: List[CloudletPayload])
+
+case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
