@@ -1,16 +1,21 @@
 package com.cloudsimulator.entities.datacenter
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
+import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies._
+import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * DataCenter Actor
@@ -26,7 +31,12 @@ class DataCenterActor(id: Long,
 
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
+  private var downlinkSwitches : ListBuffer[String] = ListBuffer()
+
   private val hostList: ListBuffer[String] = ListBuffer()
+
+  // this will be used to keep track of requests sent from LBs
+  private var requestToLBMap : Map[Long, String] = Map()
 
   private val vmList: ListBuffer[VmActor] = ListBuffer()
 
@@ -76,8 +86,12 @@ class DataCenterActor(id: Long,
       log.info(s"RootSwitchActor::DataCenterActor:RequestCreateVms:$id")
       log.info(s"Request to allocate Vms sent from ${networkPacketProperties.sender}")
 
+      // update request-LB mapping to keep track of LB that sent the request
+      requestToLBMap += (id -> sender().path.toStringWithoutAddress)
+
       val vmAllocationPolicyActor = context.child("vm-allocation-policy").get
 
+      // ask Vm Allocation Policy actor to identify vm-host mapping
       vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList)
 
       // old logic to send each payload to each host
@@ -106,17 +120,57 @@ class DataCenterActor(id: Long,
 
       receiveVmAllocation.vmAllocationResult.vmHostMap.foreach(vmHost => {
 
-        // Ask host to allocate vm
-        context.actorSelection(vmHost._2) ! AllocateVm(vmHost._1)
+        /**
+          *  Forward allocateVM message to downlink switches.
+          *  This message will be propagated to the right host
+          *
+          */
+        // Need to optimize it such that message is not sent to all downlink switches
+        var networkPacketProperties = new NetworkPacketProperties(
+          self.path.toStringWithoutAddress, vmHost._2)
+
+        downlinkSwitches.foreach(switch => {
+          context.actorSelection(switch) ! AllocateVm(networkPacketProperties, vmHost._1)
+        })
+
       })
 
       // Ask Vm Allocation Policy Actor to change status and accept new requests
       sender() ! StopProcessing
 
       // handle failed vms
+      if(receiveVmAllocation.vmAllocationResult.failedAllocationVms.size > 0){
+
+        val loadBalancerActor = context.actorSelection(
+          requestToLBMap.get(receiveVmAllocation.requestId).get)
+
+        // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
+        loadBalancerActor ! FailedVmCreation(receiveVmAllocation.requestId,
+          receiveVmAllocation.vmAllocationResult.failedAllocationVms)
+
+      }
 
     }
 
+    case createSwitch : CreateSwitch => {
+
+      downlinkSwitches += (createSwitch.switchType + "-" + createSwitch.switchId)
+
+      createSwitch.switchType match {
+        case "edge" => context.actorOf(Props(new EdgeSwitchActor),
+          createSwitch.switchType + "-" + createSwitch.switchId)
+
+        case "aggregate" => context.actorOf(Props(new AggregateSwitchActor),
+          createSwitch.switchType + "-" + createSwitch.switchId)
+      }
+    }
+
+    case vmAllocationSuccess : VmAllocationSuccess => {
+      log.info("EdgeSwitchActor::DataCenterActor:VmAllocationSuccess")
+      log.info(s"VM ${vmAllocationSuccess.vmPayload.payloadId} successfully created")
+    }
+
+      // old logic - To be deleted
       /*case CanAllocateVmTrue(vmPayloadTracker) => {
       log.info(s"HostActor::DataCenterActor:CanAllocateVmTrue:$vmPayloadTracker")
 
@@ -150,7 +204,6 @@ class DataCenterActor(id: Long,
       log.info("DataCenterActor::DataCenterActor:CisUp")
       self ! RegisterWithCIS
     }*/
-    case _ => println(s"DataCenter Actor created $id")
   }
 
 }
@@ -162,7 +215,7 @@ case class RequestCreateVms(override val networkPacketProperties: NetworkPacketP
 
 case class CanAllocateVmTrue(vmPayloadTracker : VMPayloadTracker)
 
-case class VmAllocationSuccess(vmPayload : VMPayload)
+case class VmAllocationSuccess(override val networkPacketProperties: NetworkPacketProperties, vmPayload : VMPayload) extends NetworkPacket
 
 case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
                             payloadStatus : VMPayloadStatus.Value)
@@ -172,3 +225,5 @@ case class CreateHost(hostId : Long, props : Props)
 case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) extends NetworkPacket
 
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
+
+case class CreateSwitch(switchType : String, switchId : Long)

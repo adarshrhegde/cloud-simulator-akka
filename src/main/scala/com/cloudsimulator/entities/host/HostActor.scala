@@ -1,8 +1,10 @@
 package com.cloudsimulator.entities.host
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, VMPayloadTracker, VmAllocationSuccess}
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.vm.VmActor
 
 import scala.collection.mutable.ListBuffer
@@ -24,11 +26,17 @@ import scala.collection.mutable.ListBuffer
   * @param availableBw
   */
 class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
-                ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, nicCapacity: Double,
-                availableRam : Long, availableStorage : Long, availableBw : Double)
+                ramProvisioner : String, vmScheduler : String,var availableNoOfPes : Int, nicCapacity: Double,
+                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
   extends Actor with ActorLogging {
 
   private val vmList : ListBuffer[VmActor] = ListBuffer()
+
+  override def preStart(): Unit = {
+
+    // Register self with Edge switch
+    self ! RegisterWithSwitch
+  }
 
   override def receive: Receive = {
 
@@ -48,25 +56,44 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
     }
 
-    case AllocateVm(vmPayload : VMPayload) => {
+    case allocateVm : AllocateVm => {
       log.info(s"LoadBalancerActor::DataCenterActor:AllocateVm:$id")
 
       // update host resources with vm payload
-      availableNoOfPes -= vmPayload.numberOfPes
-      availableRam -= vmPayload.ram
-      availableStorage -= vmPayload.storage
-      availableBw -= vmPayload.bw
+      availableNoOfPes -= allocateVm.vmPayload.numberOfPes
+      availableRam -= allocateVm.vmPayload.ram
+      availableStorage -= allocateVm.vmPayload.storage
+      availableBw -= allocateVm.vmPayload.bw
 
-      sender() ! VmAllocationSuccess(vmPayload)
+      // Create VM Actor
+      context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
+        allocateVm.vmPayload.userId, allocateVm.vmPayload.mips,
+        allocateVm.vmPayload.numberOfPes,allocateVm.vmPayload.ram,
+        allocateVm.vmPayload.bw)))
+
+      // send the allocation success in reverse direction
+      val networkPacketProperties = new NetworkPacketProperties(
+        allocateVm.networkPacketProperties.receiver, allocateVm.networkPacketProperties.sender)
+
+      sender() ! VmAllocationSuccess(networkPacketProperties, allocateVm.vmPayload)
+    }
+
+    case RegisterWithSwitch => {
+      log.info("HostActor::HostActor:RegisterWithSwitch")
+
+      context.actorSelection(s"../$edgeSwitchName") ! RegisterHost(self.path.toStringWithoutAddress)
+
     }
   }
 }
 
 case class CanAllocateVm(vmPayloadTracker : VMPayloadTracker)
 
-case class AllocateVm(vmPayload : VMPayload)
+case class AllocateVm(override val networkPacketProperties: NetworkPacketProperties, vmPayload : VMPayload) extends NetworkPacket
 
-case class RequestHostResourceStatus(requestId : Long)
+case class RequestHostResourceStatus(requestId : Long)  extends NetworkPacket
 
 case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
-                        var availableStorage : Long, var availableBw : Double)
+                        var availableStorage : Long, var availableBw : Double)  extends NetworkPacket
+
+case class RegisterWithSwitch()

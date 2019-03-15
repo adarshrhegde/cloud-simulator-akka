@@ -3,7 +3,7 @@ package com.cloudsimulator
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.config.Config
 import com.cloudsimulator.entities.CISActor
-import com.cloudsimulator.entities.datacenter.{CreateHost, CreateVmAllocationPolicy, DataCenterActor}
+import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateVmAllocationPolicy, DataCenterActor}
 import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.loadbalancer.LoadBalancerActor
 import com.cloudsimulator.entities.policies._
@@ -23,15 +23,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    /*case CisAvailable =>{
-      log.info("DataCenterActor::DataCenterActor:RegisterWithCIS")
-      sender() ! CisUp
-    }
 
-    case _ => {
-      log.info("Default Simulation Actor")
-    }
-*/ case Start => {
+    case Start => {
 
       val config = Config.loadConfig.get
 
@@ -41,9 +34,11 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         * Create root switch, CIS, DataCenters, hosts and policy actors
         */
 
+      val rootSwitchName : String = config.rootSwitch.switchType + "-" + config.rootSwitch.id.toString
+
       val cisActor = context.actorOf(Props(new CISActor(config.cis.id)), "CIS")
 
-      context.actorOf(Props(new LoadBalancerActor(config.rootSwitchId)), "loadBalancer")
+      context.actorOf(Props(new LoadBalancerActor(rootSwitchName)), "loadBalancer")
 
       var dcList: ListBuffer[String] = ListBuffer()
 
@@ -51,20 +46,24 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         * Each DataCenter actor will be parent/grandparent actor to all computing
         * resources within the DataCenter. This includes Hosts, VMs, VmAllocationPolicy etc
         */
-      // Create DC actors and Vm Allocation policy children respectively
+      // Create DC actors and their respective Vm Allocation policy, Switch children
       config.dataCenterList.foreach(dc => {
 
-        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, config.rootSwitchId)), "dc-" + dc.id)
+        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, rootSwitchName)), "dc-" + dc.id)
         dcList += dcActor.path.toStringWithoutAddress
 
         val vmAllocationPolicy = new SimpleVmAllocationPolicy()
 
         dcActor ! CreateVmAllocationPolicy(vmAllocationPolicy)
 
+        dc.switchList.foreach(switch => {
+            dcActor ! CreateSwitch(switch.switchType, switch.id)
+          })
+
       })
 
       log.info("DC List:: " + dcList.toList)
-      context.actorOf(Props(new RootSwitchActor(dcList.toList)), config.rootSwitchId)
+      context.actorOf(Props(new RootSwitchActor(dcList.toList)), rootSwitchName)
 
       config.hostList.foreach(host => {
 
@@ -73,7 +72,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
         dcActor ! CreateHost(host.id, Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
           host.bwProvisioner, host.ramProvisioner, host.vmScheduler, host.availableNoOfPes, host.nicCapacity,
-          host.availableRam, host.availableStorage, host.availableBw)))
+          host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch)))
       })
 
       context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")

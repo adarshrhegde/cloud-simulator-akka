@@ -87,7 +87,7 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
     }
 
     /**
-      * Start the Vm allocation strategy
+      * Start the +Vm allocation strategy
       * The injected Vm Allocation Policy instance is used to do this
       */
     case StartAllocation => {

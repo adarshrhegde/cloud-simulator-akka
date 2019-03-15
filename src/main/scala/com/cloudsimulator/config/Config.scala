@@ -3,7 +3,7 @@ package com.cloudsimulator.config
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-case class Config(rootSwitchId : String, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
+case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
 
 object Config {
 
@@ -25,7 +25,7 @@ object Config {
 }
 
 
-case class DataCenterConfig(id : Long, location : String)
+case class DataCenterConfig(id : Long, location : String, switchList : List[SwitchConfig])
 
 case class VmConfig(id : Long, userId : Long, cloudletScheduler : String, mips : Long,
                    noOfPes : Int, ram : Int, bw : Double)
@@ -34,4 +34,7 @@ case class CISConfig(id : Long)
 
 case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
                      ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, nicCapacity: Double,
-                      availableRam : Long, availableStorage : Long, availableBw : Double)
+                      availableRam : Long, availableStorage : Long, availableBw : Double, edgeSwitch : String)
+
+
+case class SwitchConfig(id : Long, switchType : String)

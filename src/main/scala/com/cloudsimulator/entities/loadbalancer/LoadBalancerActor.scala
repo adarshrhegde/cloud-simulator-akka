@@ -5,7 +5,7 @@ import com.cloudsimulator.cloudsimutils.RequestStatus
 import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.RequestCreateVms
 import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
-import com.cloudsimulator.entities.policies.{DataCenterSelectionPolicyActor, FindDataCenterForVm, SimpleDataCenterSelectionPolicy}
+import com.cloudsimulator.entities.policies.{FindDataCenterForVm, SimpleDataCenterSelectionPolicy}
 import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 
@@ -78,6 +78,11 @@ class LoadBalancerActor(rootSwitchId : String) extends Actor with ActorLogging {
       rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, vmPayloads)
     }
 
+    case failedVmCreation: FailedVmCreation => {
+      // TODO Send failed vms to another DataCenter
+
+    }
+
   }
 }
 
@@ -88,3 +93,5 @@ case class VMRequest(requestId : Long,  vmPayloads : List[VMPayload]) extends Ne
 case class ReceiveDataCenterList(requestId : Long, vmPayloads : List[VMPayload], dcList : List[Long]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId : Long, vmPayloads : List[VMPayload], dc : Long) extends NetworkPacket
+
+case class FailedVmCreation(requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
