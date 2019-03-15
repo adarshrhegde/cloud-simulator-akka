@@ -157,8 +157,8 @@ class DataCenterActor(id: Long,
 
 
     // called after the DC actor is created
-    case CreateCloudletAllocationPolicyActor(id,props) =>{
-      context.actorOf(props, s"cloudletAllocationPolicy-$id")
+    case CreateCloudletAllocationPolicyActor(id,cloudletAssignmentPolicy:CloudletAssignmentPolicy) =>{
+      context.actorOf(Props(new CloudletAssignmentPolicyActor(cloudletAssignmentPolicy)), s"cloudletAllocationPolicy-$id")
     }
 
     /*
@@ -189,4 +189,6 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 
 case class ProcessCloudletsOnVm(id: Long, cloudletPayloads: List[CloudletPayload])
 
-case class CreateCloudletAllocationPolicyActor(id:Long,props:Props)
+case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
+
+case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
