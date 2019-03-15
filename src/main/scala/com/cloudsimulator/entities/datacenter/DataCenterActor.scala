@@ -7,7 +7,7 @@ import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
-import com.cloudsimulator.entities.policies.{RequestVmAllocation, VmAllocationPolicy, VmAllocationPolicyActor}
+import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -15,7 +15,6 @@ import scala.collection.mutable.ListBuffer
 
 /**
   * DataCenter Actor
-  *
   * @param id
   * @param hostList
   * @param vmList
@@ -26,7 +25,7 @@ class DataCenterActor(id: Long,
                       location: String, rootSwitchId: String,cloudletAllocationPolicyId:String)
   extends Actor with ActorLogging {
 
-  private val vmPayloadTrackerList: ListBuffer[VMPayloadTracker] = ListBuffer()
+  private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
   private val hostList: ListBuffer[String] = ListBuffer()
 
@@ -39,7 +38,7 @@ class DataCenterActor(id: Long,
   override def preStart(): Unit = {
 
     // Register self with CIS actor on startup
-      self ! RegisterWithCIS
+    self ! RegisterWithCIS
   }
 
   override def receive: Receive = {
@@ -74,7 +73,8 @@ class DataCenterActor(id: Long,
     /**
       * Request to create VMs sent by LoadBalancer
       */
-    case RequestCreateVms(networkPacketProperties, id, vmPayloads: List[VMPayload]) => {
+    case RequestCreateVms(networkPacketProperties, id, vmPayloads : List[VMPayload]) => {
+
 
       log.info(s"RootSwitchActor::DataCenterActor:RequestCreateVms:$id")
       log.info(s"Request to allocate Vms sent from ${networkPacketProperties.sender}")
@@ -98,17 +98,39 @@ class DataCenterActor(id: Long,
 
     }
 
-    case CanAllocateVmTrue(vmPayloadTracker) => {
+
+
+    /**
+      * Receive Vm Allocation decision from Vm Allocation Policy Actor
+      */
+    case receiveVmAllocation: ReceiveVmAllocation => {
+
+      log.info("VmAllocationPolicyActor::DataCenterActor:ReceiveVmAllocation")
+
+      receiveVmAllocation.vmAllocationResult.vmHostMap.foreach(vmHost => {
+
+        // Ask host to allocate vm
+        context.actorSelection(vmHost._2) ! AllocateVm(vmHost._1)
+      })
+
+      // Ask Vm Allocation Policy Actor to change status and accept new requests
+      sender() ! StopProcessing
+
+      // handle failed vms
+
+    }
+
+      /*case CanAllocateVmTrue(vmPayloadTracker) => {
       log.info(s"HostActor::DataCenterActor:CanAllocateVmTrue:$vmPayloadTracker")
 
       vmPayloadTrackerList.filter(tracker => tracker.requestId == vmPayloadTracker.requestId
         && tracker.vmPayload.payloadId == vmPayloadTracker.vmPayload.payloadId
         && tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED).foreach(tracker => {
 
-        if (tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED)
+        if(tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED)
 
           log.info(s"Sending allocation message to Host ")
-        sender() ! AllocateVm(vmPayloadTracker)
+          sender() ! AllocateVm(vmPayloadTracker)
 
       })
 
@@ -118,13 +140,13 @@ class DataCenterActor(id: Long,
       log.info(s"HostActor::DataCenterActor:VmAllocationSuccess:$vmPayloadTracker")
 
       vmPayloadTrackerList.filter(tracker => tracker.requestId == vmPayloadTracker.requestId
-        && tracker.vmPayload.payloadId == vmPayloadTracker.vmPayload.payloadId
-        && tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED).remove(0)
+      && tracker.vmPayload.payloadId == vmPayloadTracker.vmPayload.payloadId
+      && tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED).remove(0)
 
       vmPayloadTrackerList += new VMPayloadTracker(vmPayloadTracker.requestId, vmPayloadTracker.vmPayload,
         VMPayloadStatus.ALLOCATED)
 
-    }
+    }*/
 
     case ProcessCloudletsOnVm(id,cloudletPayloads) => {
 
@@ -138,6 +160,7 @@ class DataCenterActor(id: Long,
     case CreateCloudletAllocationPolicyActor(id,props) =>{
       context.actorOf(props, s"cloudletAllocationPolicy-$id")
     }
+
     /*
     case CisUp =>{
       log.info("DataCenterActor::DataCenterActor:CisUp")
@@ -151,16 +174,16 @@ class DataCenterActor(id: Long,
 final case class RegisterWithCIS()
 
 case class RequestCreateVms(override val networkPacketProperties: NetworkPacketProperties,
-                            requestId: Long, vmPayloads: List[VMPayload]) extends NetworkPacket
+                            requestId : Long, vmPayloads: List[VMPayload]) extends NetworkPacket
 
-case class CanAllocateVmTrue(vmPayloadTracker: VMPayloadTracker)
+case class CanAllocateVmTrue(vmPayloadTracker : VMPayloadTracker)
 
-case class VmAllocationSuccess(vmPayloadTracker: VMPayloadTracker)
+case class VmAllocationSuccess(vmPayload : VMPayload)
 
-case class VMPayloadTracker(requestId: Long, vmPayload: VMPayload,
-                            payloadStatus: VMPayloadStatus.Value)
+case class VMPayloadTracker(requestId : Long, vmPayload: VMPayload,
+                            payloadStatus : VMPayloadStatus.Value)
 
-case class CreateHost(hostId: Long, props: Props)
+case class CreateHost(hostId : Long, props : Props)
 
 case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) extends NetworkPacket
 

@@ -1,5 +1,8 @@
 package com.cloudsimulator.entities.policies
 
+import com.cloudsimulator.entities.host.HostResource
+import com.cloudsimulator.entities.payload.VMPayload
+
 /**
   * Vm Allocation Policy
   * This is the trait that declares the behavior used to allocate VMs to hosts
@@ -7,5 +10,5 @@ package com.cloudsimulator.entities.policies
   */
 trait VmAllocationPolicy {
 
-  def allocateVMs()
+  def allocateVMs(vmPayloads : List[VMPayload], hostResources : Map[String, HostResource]) : VmAllocationResult
 }
