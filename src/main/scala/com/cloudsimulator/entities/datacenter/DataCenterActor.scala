@@ -29,6 +29,8 @@ class DataCenterActor(id: Long,
                       location: String, rootSwitchId : String)
   extends Actor with ActorLogging {
 
+  import context._
+
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
   private var downlinkSwitches : ListBuffer[String] = ListBuffer()
@@ -45,7 +47,8 @@ class DataCenterActor(id: Long,
   override def preStart(): Unit = {
 
     // Register self with CIS actor on startup
-    self ! RegisterWithCIS
+    context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
+
   }
 
   override def receive: Receive = {
