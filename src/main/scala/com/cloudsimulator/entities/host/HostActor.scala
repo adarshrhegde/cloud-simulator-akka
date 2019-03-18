@@ -1,11 +1,12 @@
 package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, Props}
+import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.switch.RegisterHost
-import com.cloudsimulator.entities.vm.VmActor
+import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
 
 import scala.collection.mutable.ListBuffer
 
@@ -30,7 +31,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
                 var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
   extends Actor with ActorLogging {
 
-  private val vmList : ListBuffer[VmActor] = ListBuffer()
+  private val vmIdToRefMap : Map[Long,String] = Map()
 
   override def preStart(): Unit = {
 
@@ -57,6 +58,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     }
 
     case allocateVm : AllocateVm => {
+
       log.info(s"LoadBalancerActor::DataCenterActor:AllocateVm:$id")
 
       // update host resources with vm payload
@@ -66,10 +68,13 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       availableBw -= allocateVm.vmPayload.bw
 
       // Create VM Actor
-      context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
+      val vmActor=context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
         allocateVm.vmPayload.userId, allocateVm.vmPayload.mips,
         allocateVm.vmPayload.numberOfPes,allocateVm.vmPayload.ram,
         allocateVm.vmPayload.bw)))
+
+      //add to vmList for the host
+      vmIdToRefMap + (allocateVm.vmPayload.payloadId -> vmActor.path.toStringWithoutAddress)
 
       // send the allocation success in reverse direction
       val networkPacketProperties = new NetworkPacketProperties(
@@ -80,8 +85,28 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
     case RegisterWithSwitch => {
       log.info("HostActor::HostActor:RegisterWithSwitch")
-
       context.actorSelection(s"../$edgeSwitchName") ! RegisterHost(self.path.toStringWithoutAddress)
+    }
+
+    /**
+      * Checks if the host is running a VM which is required by the cloudlet.
+      * If it is then tag the cloudlet as processing
+      */
+    case CheckHostforRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
+
+      //if vm required by cloudlet is present, then send the msg and update cloudlet's status
+      val newCloudlets: List[CloudletPayload] = cloudletPayloads
+        .map(cloudlet => {
+          if (cloudlet.status.equals(CloudletPayloadStatus.SENT) &&
+            vmIdToRefMap.contains(cloudlet.vmId)) {
+
+            //TODO check the resources for cloudlet and VM are compatible
+
+            cloudlet.status = CloudletPayloadStatus.ASSIGNED_TO_VM
+            context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(reqId,cloudlet)
+          }
+          cloudlet
+        })
 
     }
   }
@@ -97,3 +122,5 @@ case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
                         var availableStorage : Long, var availableBw : Double)  extends NetworkPacket
 
 case class RegisterWithSwitch()
+
+case class CheckHostforRequiredVMs(id:Long, cloudletPayloads:List[CloudletPayload], vmList:List[Long])

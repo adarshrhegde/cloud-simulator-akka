@@ -9,7 +9,7 @@ import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.policies.{ FindDataCenter}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.utils.ActorUtility
-import com.cloudsimulator.entities.datacenter.{ProcessCloudletsOnVm, RequestCreateVms}
+import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
 
 /**
   * LoadBalancer actor
@@ -22,8 +22,20 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
   override def receive: Receive = {
 
+    /**
+      * Cloudlets provided by the user
+      * Sender: SimulationActor
+      *
+      * Find out the VMs required by the cloudlets.
+      * Get the Datacenter list and provided the vmList to it.
+      * If the DC responds has any of VMs in the vmList then send the cloudlets
+      * to this DC.
+      *
+      */
     case CloudletRequest(id, cloudletPayloads: List[CloudletPayload]) => {
       requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
+
+
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
@@ -82,8 +94,10 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
         //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
       }
       else {
+        val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
+        val vmList:List[Long]=cloudletPayload.map(_.vmId)
         //send the cloudlet data to the dc and it takes the necessary steps
-        dcActor ! ProcessCloudletsOnVm(id, payloads.map(_.asInstanceOf[CloudletPayload]))
+        dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
       }
     }
 

@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
-import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, HostActor}
+import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostforRequiredVMs, HostActor}
 import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
@@ -47,6 +47,8 @@ class DataCenterActor(id: Long,
 //  private val vmToHostMap: Map[Long, Long] = Map()
 
   private val cloudletPayloadTrackerMap:Map[Long,CloudletPayload]=Map()
+
+  private val cloudletReqCountFromHost:Map[Long,Long]=Map()
 
   override def preStart(): Unit = {
 
@@ -206,18 +208,29 @@ class DataCenterActor(id: Long,
 
     }*/
 
-    case ProcessCloudletsOnVm(id,cloudletPayloads) => {
+    /**
+      * Check if the DC has a host running a VM on which the the cloudlet needs to be executed.
+      * vmList contains the VM ids required by the cloudlets
+      * The cloudlet have a vmId present which tells us on which VM it can run.
+      */
+    case CheckDCForRequiredVMs(id,cloudletPayloads,vmList) => {
 
       cloudletPayloadTrackerMap + (id -> cloudletPayloads)
-      context.actorSelection(ActorUtility.getActorRef(cloudletAllocationPolicyId)) !
-        CheckAssignmentOfCloudlets(id,cloudletPayloads,hostList.toList)
+
+      // count kept to check if responses from all th hosts is received
+      cloudletReqCountFromHost + (id->hostList.size)
+
+      //iterate over all host actor references and check for the required VMs
+      hostList.foreach(host=>{
+        context.actorSelection(host) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
+      })
     }
 
 
     // called after the DC actor is created
-    case CreateCloudletAllocationPolicyActor(id,cloudletAssignmentPolicy:CloudletAssignmentPolicy) =>{
-      context.actorOf(Props(new CloudletAssignmentPolicyActor(cloudletAssignmentPolicy)), s"cloudletAllocationPolicy-$id")
-    }
+//    case CreateCloudletAllocationPolicyActor(id,cloudletAssignmentPolicy:CloudletAssignmentPolicy) =>{
+//      context.actorOf(Props(new CloudletAssignmentPolicyActor(cloudletAssignmentPolicy)), s"cloudletAllocationPolicy-$id")
+//    }
 
     /*
     case CisUp =>{
@@ -248,6 +261,6 @@ case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocatio
 
 case class CreateSwitch(switchType : String, switchId : Long)
 
-case class ProcessCloudletsOnVm(id: Long, cloudletPayloads: List[CloudletPayload])
+case class CheckDCForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload],vmList:List[Long])
 
-case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
+//case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
