@@ -4,12 +4,14 @@ import akka.actor.{Actor, ActorLogging, ActorSelection}
 import com.cloudsimulator.cloudsimutils.RequestStatus
 import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
-import com.cloudsimulator.entities.policies.{ SimpleDataCenterSelectionPolicy}
+import com.cloudsimulator.entities.policies.SimpleDataCenterSelectionPolicy
 import com.cloudsimulator.utils.ActorUtility
-import com.cloudsimulator.entities.policies.{ FindDataCenter}
+import com.cloudsimulator.entities.policies.FindDataCenter
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * LoadBalancer actor
@@ -18,24 +20,20 @@ import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCre
   */
 class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
-  private val requestIdMap: Map[Long, RequestStatus.Value] = Map()
+  val requestIdMap: Map[Long, RequestStatus.Value] = Map()
+
+  // this map can be common for both VM and Cloudlet payload
+  val requestIdToCheckedDcMap: Map[Long,Seq[Long]]=Map()
 
   override def receive: Receive = {
 
     /**
       * Cloudlets provided by the user
-      * Sender: SimulationActor
-      *
-      * Find out the VMs required by the cloudlets.
-      * Get the Datacenter list and provided the vmList to it.
-      * If the DC responds has any of VMs in the vmList then send the cloudlets
-      * to this DC.
-      *
+      * Sender: SimulationActor / LoadBalancerActor
+      * Add to the requestMap and request for the DCList from the CIS
       */
     case CloudletRequest(id, cloudletPayloads: List[CloudletPayload]) => {
       requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
-
-
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
@@ -69,7 +67,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       val selectionPolicy: ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
       // Request DataCenter selection policy to select DataCenter from provided list
-      selectionPolicy ! FindDataCenter(id, payloads, dcList)
+      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap(id))
     }
 
     /**
@@ -97,6 +95,8 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
         val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
         val vmList:List[Long]=cloudletPayload.map(_.vmId)
         //send the cloudlet data to the dc and it takes the necessary steps
+        //TODO change dcActor to rootSwitchActor
+        //TODO vmList can be removed
         dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
       }
     }
@@ -106,9 +106,24 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
     }
 
+    /**
+      * Sender: DataCenterActor
+      * The remaining cloudletPayload is returned to the LBActor.
+      * For the current reqId the prevDcId is recorded and the DCSelectionPolicy selects
+      * only from the remaining DC.
+      */
+    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayload, prevDcId) => {
+      requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++= Seq(prevDcId)))
+
+      if(cloudletPayload.nonEmpty){
+        self ! CloudletRequest(reqId,cloudletPayload)
+      }
+
+    }
+
   }
 
-  def isVmPayload(x: List[Payload]): Boolean = x(0) match {
+  def isVmPayload(x: List[Payload]): Boolean = x.head match {
     case vm: VMPayload => true
     case _ => false
   }
@@ -123,3 +138,5 @@ case class ReceiveDataCenterList(requestId: Long, payloads: List[Payload], dcLis
 case class FailedVmCreation(requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
+
+case class ReceiveRemainingCloudletsFromDC(reqId:Long,cloudletPayload: List[CloudletPayload],prevDcId:Long)

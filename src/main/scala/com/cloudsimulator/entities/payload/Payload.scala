@@ -9,7 +9,7 @@ trait Payload {
 }
 
 //TODO keep track of DC & host
-case class CloudletPayload(payloadId: Long, userId: Long, cloudletId: Long, vmId: Long, numberOfPes: Int, execStartTime: Double, workloadLength: Long, var status: CloudletPayloadStatus,
+case class CloudletPayload(payloadId: Long, userId: Long, cloudletId: Long, var dcId: Long, var hostId: Long, vmId: Long, numberOfPes: Int, execStartTime: Double, workloadLength: Long, var status: CloudletPayloadStatus,
                            utilizationModelRam: UtilizationModel, utilizationModelCPU: UtilizationModel,
                            utilizationModelBw: UtilizationModel) extends Payload
 

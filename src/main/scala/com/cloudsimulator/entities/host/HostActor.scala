@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
-import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, VMPayloadTracker, VmAllocationSuccess}
+import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedForRequiredVms, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.switch.RegisterHost
@@ -90,7 +90,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
     /**
       * Checks if the host is running a VM which is required by the cloudlet.
-      * If it is then tag the cloudlet as processing
+      * If it is then tag the cloudlet as processing and send to the VM.
       */
     case CheckHostforRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
 
@@ -103,11 +103,14 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
             //TODO check the resources for cloudlet and VM are compatible
 
             cloudlet.status = CloudletPayloadStatus.ASSIGNED_TO_VM
+            cloudlet.hostId=id
+            cloudlet.dcId=dataCenterId
             context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(reqId,cloudlet)
           }
           cloudlet
         })
-
+      //send response(new cloudlets) back to the DC
+      context.parent ! HostCheckedForRequiredVms(reqId,cloudletPayloads)
     }
   }
 }

@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostforRequiredVMs, HostActor}
-import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
+import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
@@ -46,7 +46,7 @@ class DataCenterActor(id: Long,
 
 //  private val vmToHostMap: Map[Long, Long] = Map()
 
-  private val cloudletPayloadTrackerMap:Map[Long,CloudletPayload]=Map()
+  private val cloudletPayloadTrackerMap:Map[Long,List[CloudletPayload]]=Map()
 
   private val cloudletReqCountFromHost:Map[Long,Long]=Map()
 
@@ -214,16 +214,48 @@ class DataCenterActor(id: Long,
       * The cloudlet have a vmId present which tells us on which VM it can run.
       */
     case CheckDCForRequiredVMs(id,cloudletPayloads,vmList) => {
-
+      // so we can update all cloudlets when their execution status is received.
       cloudletPayloadTrackerMap + (id -> cloudletPayloads)
 
-      // count kept to check if responses from all th hosts is received
+      // count kept to check if responses from all the hosts is received
+      //We have to receive response from all the host since we have a vmId present in the cloudlet.
       cloudletReqCountFromHost + (id->hostList.size)
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
         context.actorSelection(host) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
       })
+    }
+
+    /**
+      * Sender: Host present in the DC
+      *
+      * Check if any cloudlet was assigned to a VM on this host, if so,
+      * update the cloudlet on the DC.
+      * Decrement the host count for this CloudletPayload
+      * Send all the remaining cloudlets to the LB.
+      */
+    case HostCheckedForRequiredVms(reqId, cloudletPayloads) => {
+      val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
+      initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
+        if (cloudlet._1.cloudletId == cloudlet._2.cloudletId) {
+          cloudlet._1.status = cloudlet._2.status
+          cloudlet._1.hostId = cloudlet._2.hostId
+          cloudlet._1.dcId = cloudlet._2.dcId
+        }
+      })
+      // reduce cloudletReqCountFromHost for the reqId
+      cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))
+
+      // iterate over all cloudlets and check if any for assigned status,
+      // send the remaining cloudlets to LB, so it can be sent to another DC.
+      if (cloudletReqCountFromHost(reqId) > 0) {
+        val remainingCloudlets: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
+          .filter(cloudlet=>{
+            cloudlet.dcId != id
+          })
+        context.actorSelection(ActorUtility.getActorRef("loadBalancer")) ! ReceiveRemainingCloudletsFromDC(reqId,cloudletPayloads,id)
+      }
     }
 
 
@@ -264,3 +296,5 @@ case class CreateSwitch(switchType : String, switchId : Long)
 case class CheckDCForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload],vmList:List[Long])
 
 //case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
+
+case class HostCheckedForRequiredVms(reqId:Long, cloudletPayload: List[CloudletPayload])
