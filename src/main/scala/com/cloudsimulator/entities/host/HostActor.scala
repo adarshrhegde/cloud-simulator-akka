@@ -5,6 +5,8 @@ import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedForRequiredVms, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
+import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.policies.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler, VmSchedulerActor}
 import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
 
@@ -27,19 +29,30 @@ import scala.collection.mutable.ListBuffer
   * @param availableBw
   */
 class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
-                ramProvisioner : String, vmScheduler : String,var availableNoOfPes : Int, nicCapacity: Double,
+                ramProvisioner : String, vmScheduler : VmScheduler, var availableNoOfPes : Int, nicCapacity: Double,
                 var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
   extends Actor with ActorLogging {
 
   private val vmIdToRefMap : Map[Long,String] = Map()
 
+
   override def preStart(): Unit = {
 
     // Register self with Edge switch
+    self ! CreateVmScheduler
+
     self ! RegisterWithSwitch
   }
 
   override def receive: Receive = {
+
+    case CreateVmScheduler => {
+      log.info(s"HostActor::HostActor:CreateVmScheduler:$id")
+
+      context.actorOf(Props(new VmSchedulerActor(vmScheduler)),
+        "Vm-scheduler")
+
+    }
 
     /**
       * Request from DataCenter asking host if Vm can be allocated
@@ -127,3 +140,5 @@ case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
 case class RegisterWithSwitch()
 
 case class CheckHostforRequiredVMs(id:Long, cloudletPayloads:List[CloudletPayload], vmList:List[Long])
+
+case class CreateVmScheduler()
