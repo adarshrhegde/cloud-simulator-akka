@@ -12,6 +12,7 @@ import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -49,6 +50,8 @@ class DataCenterActor(id: Long,
   private val cloudletPayloadTrackerMap:Map[Long,List[CloudletPayload]]=Map()
 
   private val cloudletReqCountFromHost:Map[Long,Long]=Map()
+
+  val mapSliceIdToHostCountRem: Map[Long, Long] = Map()
 
   override def preStart(): Unit = {
 
@@ -223,7 +226,7 @@ class DataCenterActor(id: Long,
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
-        context.actorSelection(host) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
+        context.actorSelection(ActorUtility.getActorRef(s"host-$host")) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
       })
     }
 
@@ -256,6 +259,19 @@ class DataCenterActor(id: Long,
           })
         context.actorSelection(ActorUtility.getActorRef("loadBalancer")) ! ReceiveRemainingCloudletsFromDC(reqId,cloudletPayloads,id)
       }
+    }
+
+    /**
+      * Sender: TimeActor
+      * TimeSliceInfo to be sent down the hierarchy till the VMSchedulerPolicy
+      */
+    case SendTimeSliceInfo(sliceInfo:TimeSliceInfo) =>{
+
+      log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
+      mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
+      hostList.foreach(host=>{
+        context.actorSelection(ActorUtility.getActorRef(s"host-$host")) ! SendTimeSliceInfo(sliceInfo)
+      })
     }
 
 

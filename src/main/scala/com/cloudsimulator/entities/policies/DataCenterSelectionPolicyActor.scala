@@ -15,7 +15,6 @@ class DataCenterSelectionPolicyActor(selectionPolicy: DataCenterSelectionPolicy)
       sender() ! ReceiveDataCenterForVm(id, payloads, dc)
     }
   }
-
 }
 
 object DataCenterSelectionPolicyActor {

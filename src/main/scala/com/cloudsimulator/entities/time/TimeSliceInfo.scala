@@ -1,3 +1,3 @@
 package com.cloudsimulator.entities.time
 
-case class TimeSliceInfo(slice: Long, sliceStartSysTime: Long)
+case class TimeSliceInfo(sliceId: Long, slice: Long, sliceStartSysTime: Long)

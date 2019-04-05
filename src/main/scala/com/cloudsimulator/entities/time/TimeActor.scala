@@ -8,7 +8,7 @@ import com.cloudsimulator.utils.ActorUtility
 
 class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 
-  val timeSliceId: Long = Long(0)
+  var timeSliceId: Long = Long(0)
   val seqOfSystemTime: Seq[TimeStartEnd] = Seq()
   val mapIdToDcCountRem: Map[Long, Long] = Map()
   var startExecTimeForTimeSlice: Long = Calendar.getInstance().getTimeInMillis
@@ -38,15 +38,15 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       */
     case TimeActorReceiveDataCenterList(dcList: Seq[Long]) => {
 
-      log.info("CIS::TimeActor:TimeActorReceiveDataCenterLis")
+      log.info("CIS::TimeActor:TimeActorReceiveDataCenterList")
 
       mapIdToDcCountRem + (timeSliceId -> dcList.size)
       startExecTimeForTimeSlice = Calendar.getInstance().getTimeInMillis
       dcList.foreach(dc => {
         context.actorSelection(ActorUtility.getActorRef(s"dc-$dc")) !
-          SendTimeSliceInfo(TimeSliceInfo(timeSlice, startExecTimeForTimeSlice))
+          SendTimeSliceInfo(TimeSliceInfo(timeSliceId, timeSlice, startExecTimeForTimeSlice))
       })
-
+      timeSliceId = timeSliceId + 1
     }
     case _ => {
 
