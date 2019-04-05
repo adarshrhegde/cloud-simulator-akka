@@ -17,6 +17,7 @@ object MainApp extends App {
   val simulationActor = system.actorOf(Props(new SimulationActor(1)), ActorUtility.simulationActor)
 
   simulationActor ! Start
+
   /*val cisActor = system.actorOf(Props(new CISActor(config.cis.id)), "CIS")
 
   config.dataCenterList.foreach(dc => {

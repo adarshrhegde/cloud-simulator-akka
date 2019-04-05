@@ -71,7 +71,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
           .getActorRef("dc-"+host.dataCenterId))
 
         dcActor ! CreateHost(host.id, Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
-          host.bwProvisioner, host.ramProvisioner, host.vmScheduler, host.availableNoOfPes, host.nicCapacity,
+          host.bwProvisioner, host.ramProvisioner, getVmScheduler(host.vmScheduler), host.availableNoOfPes, host.nicCapacity,
           host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch)))
       })
 
@@ -83,6 +83,15 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
     case "SendWorkload" => {
 
+    }
+  }
+
+  def getVmScheduler(vmSchedulerType : String) : VmScheduler = {
+
+    vmSchedulerType match {
+
+      case "TimeSharedVmScheduler" => new TimeSharedVmScheduler()
+      case "SpaceSharedVmScheduler" => new SpaceSharedVmScheduler()
     }
   }
 
