@@ -58,6 +58,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
       self ! CheckCanSchedule
     }
+      //TODO call TimeSliceCompleted on the host when all timeslices are exhausted
   }
 }
 

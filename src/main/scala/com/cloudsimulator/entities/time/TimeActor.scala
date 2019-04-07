@@ -48,6 +48,24 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       })
       timeSliceId = timeSliceId + 1
     }
+
+    /**
+      * Sender: DataCenterActor
+      * After it receives from all data centers, it repeats the flow.
+      * Else it decrements the count of the remaining responses from the DCs.
+      */
+    case TimeSliceCompleted(sliceInfo:TimeSliceInfo)=>{
+      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
+
+      val newCount:Option[Long]=mapIdToDcCountRem.get(sliceInfo.sliceId).map(_-1)
+      newCount.filter(_==0).foreach(_ => {self ! TimeSliceCompleted(sliceInfo)
+        seqOfSystemTime +: Seq(TimeStartEnd(sliceInfo.sliceStartSysTime,Calendar.getInstance().getTimeInMillis))
+        self ! RequestDataCenterList()
+      })
+      newCount.filter(_!=0).map(count => mapIdToDcCountRem+(sliceInfo.sliceId -> (count-1)))
+
+    }
+
     case _ => {
 
     }
@@ -60,3 +78,5 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 case class TimeActorReceiveDataCenterList(dcList: Seq[Long])
 
 case class SendTimeSliceInfo(sliceInfo: TimeSliceInfo)
+
+case class TimeSliceCompleted(timeSliceInfo:TimeSliceInfo)

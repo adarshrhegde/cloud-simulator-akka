@@ -12,7 +12,7 @@ import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -226,7 +226,7 @@ class DataCenterActor(id: Long,
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
-        context.actorSelection(ActorUtility.getActorRef(s"host-$host")) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
+        context.actorSelection(host) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
       })
     }
 
@@ -272,6 +272,18 @@ class DataCenterActor(id: Long,
       hostList.foreach(host=>{
         context.actorSelection(ActorUtility.getActorRef(s"host-$host")) ! SendTimeSliceInfo(sliceInfo)
       })
+    }
+
+    /**
+      * Sender: HostActor
+      * After it receives from all hosts, it sends to the TimeActor to send the next time slice when available
+      * Else it decrements the count of the remaining responses from the host.
+      */
+    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
+      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
+      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(sliceInfo.sliceId).map(_-1)
+      newCount.filter(_==0).foreach(_ => context.actorSelection(ActorUtility.getActorRef("TimeActor")) ! TimeSliceCompleted(sliceInfo))
+      newCount.filter(_!=0).map(count => mapSliceIdToHostCountRem+(sliceInfo.sliceId -> (count-1)))
     }
 
 
