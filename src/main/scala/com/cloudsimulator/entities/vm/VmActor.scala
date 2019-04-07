@@ -2,6 +2,8 @@ package com.cloudsimulator.entities.vm
 
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.payload.CloudletPayload
+import com.cloudsimulator.entities.policies.vmscheduler.VmRequirement
+import com.cloudsimulator.entities.time.SendTimeSliceInfo
 
 class VmActor(id : Long, userId : Long, mips : Long,
               noOfPes : Int, ram : Long, bw : Double)
@@ -17,8 +19,20 @@ class VmActor(id : Long, userId : Long, mips : Long,
     case ScheduleCloudlet(reqId,cloudlet)=>{
 
     }
+
+    case SendVmRequirement() => {
+
+      sender() ! VmRequirement(id, self, mips, noOfPes)
+    }
+
+    case (sendTimeSliceInfo: SendTimeSliceInfo) => {
+
+      // TODO : execute
+    }
   }
 }
 
 
 case class ScheduleCloudlet(reqId:Long,cloudlet:CloudletPayload)
+
+case class SendVmRequirement()

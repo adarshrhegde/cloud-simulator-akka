@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedFor
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.payload.VMPayload
-import com.cloudsimulator.entities.policies.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler, VmSchedulerActor}
+import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmScheduler, VmSchedulerActor}
 import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
@@ -29,9 +29,10 @@ import scala.collection.mutable.ListBuffer
   * @param availableStorage
   * @param availableBw
   */
-class HostActor(id: Long, dataCenterId: Long, hypervisor: String, bwProvisioner: String,
-                ramProvisioner: String, vmScheduler: VmScheduler, var availableNoOfPes: Int, nicCapacity: Double,
-                var availableRam: Long, var availableStorage: Long, var availableBw: Double, edgeSwitchName: String)
+
+class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
+                ramProvisioner : String, vmScheduler : VmScheduler, var availableNoOfPes : Int, mips: Long,
+                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
   extends Actor with ActorLogging {
 
   private val vmIdToRefMap: Map[Long, String] = Map()
@@ -52,7 +53,7 @@ class HostActor(id: Long, dataCenterId: Long, hypervisor: String, bwProvisioner:
       log.info(s"HostActor::HostActor:CreateVmScheduler:$id")
 
       context.actorOf(Props(new VmSchedulerActor(vmScheduler)),
-        "Vm-scheduler")
+        "vm-scheduler")
 
     }
 
@@ -82,11 +83,13 @@ class HostActor(id: Long, dataCenterId: Long, hypervisor: String, bwProvisioner:
       availableStorage -= allocateVm.vmPayload.storage
       availableBw -= allocateVm.vmPayload.bw
 
+      // TODO - add vms to config and add vm id to vm actor
+
       // Create VM Actor
       val vmActor = context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
         allocateVm.vmPayload.userId, allocateVm.vmPayload.mips,
         allocateVm.vmPayload.numberOfPes, allocateVm.vmPayload.ram,
-        allocateVm.vmPayload.bw)))
+        allocateVm.vmPayload.bw)), s"vm-")
 
       //add to vmList for the host
       vmIdToRefMap + (allocateVm.vmPayload.payloadId -> vmActor.path.toStringWithoutAddress)
@@ -131,6 +134,11 @@ class HostActor(id: Long, dataCenterId: Long, hypervisor: String, bwProvisioner:
     case SendTimeSliceInfo(sliceInfo: TimeSliceInfo) => {
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
       mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
+
+      val vmPathList = context.children.filter(child => child.path.toStringWithoutAddress.contains("vm"))
+
+      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmPathList)
+
     }
   }
 }

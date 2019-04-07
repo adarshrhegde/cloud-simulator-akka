@@ -33,7 +33,7 @@ case class VmConfig(id : Long, userId : Long, cloudletScheduler : String, mips :
 case class CISConfig(id : Long)
 
 case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
-                     ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, nicCapacity: Double,
+                     ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, mips: Long,
                       availableRam : Long, availableStorage : Long, availableBw : Double, edgeSwitch : String)
 
 

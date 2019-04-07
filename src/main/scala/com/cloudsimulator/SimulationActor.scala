@@ -7,6 +7,7 @@ import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateV
 import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.loadbalancer.LoadBalancerActor
 import com.cloudsimulator.entities.policies._
+import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
 import com.cloudsimulator.entities.switch.RootSwitchActor
 import com.cloudsimulator.utils.ActorUtility
 
@@ -71,11 +72,12 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
           .getActorRef("dc-"+host.dataCenterId))
 
         dcActor ! CreateHost(host.id, Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
-          host.bwProvisioner, host.ramProvisioner, getVmScheduler(host.vmScheduler), host.availableNoOfPes, host.nicCapacity,
+          host.bwProvisioner, host.ramProvisioner, getVmScheduler(host.vmScheduler), host.availableNoOfPes, host.mips,
           host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch)))
       })
 
       context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")
+
 
 
       self ! "SendWorkload"

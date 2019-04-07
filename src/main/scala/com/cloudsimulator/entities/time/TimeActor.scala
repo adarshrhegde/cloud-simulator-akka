@@ -8,7 +8,7 @@ import com.cloudsimulator.utils.ActorUtility
 
 class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 
-  var timeSliceId: Long = Long(0)
+  var timeSliceId: Long = 0
   val seqOfSystemTime: Seq[TimeStartEnd] = Seq()
   val mapIdToDcCountRem: Map[Long, Long] = Map()
   var startExecTimeForTimeSlice: Long = Calendar.getInstance().getTimeInMillis
