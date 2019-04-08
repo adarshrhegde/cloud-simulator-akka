@@ -10,7 +10,7 @@ import scala.collection.mutable.ListBuffer
 
 class CISActor(id: Long) extends Actor with ActorLogging {
 
-  var dcList: ListBuffer[Long] = ListBuffer()
+  val dcList: ListBuffer[Long] = ListBuffer()
 
   override def preStart(): Unit = {
     log.info("CISActor preStart()")

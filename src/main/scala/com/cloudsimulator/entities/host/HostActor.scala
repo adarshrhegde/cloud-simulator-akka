@@ -6,6 +6,7 @@ import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedFor
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
 import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmScheduler, VmSchedulerActor}
 import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
@@ -138,6 +139,15 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       val vmPathList = context.children.filter(child => child.path.toStringWithoutAddress.contains("vm"))
 
       context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmPathList)
+
+    }
+
+    case requestHostResourceStatus: RequestHostResourceStatus => {
+      log.info("VmAllocationPolicyActor::HostActor:RequestHostResourceStatus")
+
+      sender() ! ReceiveHostResourceStatus(requestHostResourceStatus.requestId,
+        new HostResource(availableNoOfPes, availableRam,
+      availableStorage, availableBw))
 
     }
   }

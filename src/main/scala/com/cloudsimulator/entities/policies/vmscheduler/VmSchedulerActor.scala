@@ -38,7 +38,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
     case CheckCanSchedule => {
 
-      if(vmActorPaths.size == vmRequirementList) {
+      if(vmActorPaths.size == vmRequirementList.size) {
 
         val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList)
 

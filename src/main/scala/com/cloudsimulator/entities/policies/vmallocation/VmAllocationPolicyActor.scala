@@ -1,4 +1,4 @@
-package com.cloudsimulator.entities.policies
+package com.cloudsimulator.entities.policies.vmallocation
 
 import java.util.concurrent.TimeUnit
 
@@ -25,6 +25,8 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
   private var requestId : Long = _
   private var vmPayloads : List[VMPayload] = _
   private var hostResources : Map[String, HostResource] = _
+
+  private var hostCount : Int = _
 
   private val hostResponseWaitTime = 5 // seconds
 
@@ -54,7 +56,12 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
 
       this.vmPayloads = requestVmAllocation.vmPayloads
       this.requestId = requestVmAllocation.id
+
+      // Initialize host resources before vm allocation starts
       hostResources = Map()
+
+      // Host count at the dataCenter. This will be used to count responses from hosts
+      hostCount = requestVmAllocation.hostList.size
 
       // Send message to each host in host list of DataCenter to send resource status
       requestVmAllocation.hostList.map(host => context.actorSelection(host))
@@ -62,20 +69,23 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
           hostActor ! RequestHostResourceStatus(requestId)
         })
 
-      /**
+      /*/**
         * Schedule a message to self after a duration of $hostResponseWaitTime seconds
         * for all hosts to respond with resource status. The scheduled message triggers
         * allocation strategy
         */
       context.system.scheduler.scheduleOnce(
-        new FiniteDuration(hostResponseWaitTime, TimeUnit.SECONDS), self, StartAllocation())
+        new FiniteDuration(hostResponseWaitTime, TimeUnit.SECONDS), self, StartAllocation())*/
+
+
+      self ! StartAllocation
     }
 
     /**
       * Receive the Resource status from a host
       */
     case ReceiveHostResourceStatus(id, hostResource : HostResource) => {
-      log.info("HostActor::VmAllocationPolicyActor:RequestVmAllocation")
+      log.info("HostActor::VmAllocationPolicyActor:ReceiveHostResourceStatus")
 
       /**
         * If the host is responding to the same request as being processed
@@ -83,6 +93,8 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
         */
       if(id == requestId){
         hostResources += (sender().path.toStringWithoutAddress -> hostResource)
+
+        self ! StartAllocation
       }
     }
 
@@ -92,12 +104,18 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
       */
     case StartAllocation => {
 
-      log.info("VmAllocationPolicy::VmAllocationPolicy:StartAllocation")
+      if(hostResources.size == hostCount){
+        log.info("VmAllocationPolicy::VmAllocationPolicy:StartAllocation")
 
-      val vmAllocationResult = vmAllocationPolicy.allocateVMs(vmPayloads, hostResources)
+        val vmAllocationResult = vmAllocationPolicy.allocateVMs(vmPayloads, hostResources)
 
-      context.parent ! ReceiveVmAllocation(requestId, vmAllocationResult)
+        context.parent ! ReceiveVmAllocation(requestId, vmAllocationResult)
 
+      } else {
+
+        log.info(s"Waiting for resource status responses from all hosts for DataCenter ${parent.path.name}")
+
+      }
     }
 
     case StopProcessing =>

@@ -14,6 +14,6 @@ case class CloudletPayload(payloadId: Long, userId: Long, cloudletId: Long, var 
                            utilizationModelBw: UtilizationModel) extends Payload
 
 case class VMPayload(payloadId: Long, userId: Long, numberOfPes: Int,
-                     bw: Double, mips: Long, ram: Long, storage: Long, guestOS: String) extends Payload
+                     bw: Double, mips: Long, ram: Long, storage: Long, guestOs: String, cloudletScheduler: String) extends Payload
 
 // TODO : CloudletScheduler, Host, inMigration in VM Actor

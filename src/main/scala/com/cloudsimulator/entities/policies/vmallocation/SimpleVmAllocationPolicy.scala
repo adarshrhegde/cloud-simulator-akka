@@ -1,4 +1,4 @@
-package com.cloudsimulator.entities.policies
+package com.cloudsimulator.entities.policies.vmallocation
 
 import com.cloudsimulator.entities.host.HostResource
 import com.cloudsimulator.entities.payload.VMPayload

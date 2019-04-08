@@ -10,7 +10,8 @@ class DataCenterSelectionPolicyActor(selectionPolicy: DataCenterSelectionPolicy)
   override def receive: Receive = {
     //TODO exclude the datacenters from the excludedDCList
     case FindDataCenter(id, payloads: List[Payload], dcList, excludeDcList: Seq[Long]) => {
-
+      log.info(s"LoadBalancerActor::DataCenterSelectionPolicyActor:FindDataCenter")
+      log.info(s"Total DC count -> ${dcList.size}")
       val dc: Option[Long] = selectionPolicy.selectDC(dcList)
       sender() ! ReceiveDataCenterForVm(id, payloads, dc)
     }

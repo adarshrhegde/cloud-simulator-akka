@@ -5,8 +5,10 @@ import com.cloudsimulator.config.Config
 import com.cloudsimulator.entities.CISActor
 import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateVmAllocationPolicy, DataCenterActor}
 import com.cloudsimulator.entities.host.HostActor
-import com.cloudsimulator.entities.loadbalancer.LoadBalancerActor
+import com.cloudsimulator.entities.loadbalancer.{LoadBalancerActor, VMRequest}
+import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies._
+import com.cloudsimulator.entities.policies.vmallocation.SimpleVmAllocationPolicy
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
 import com.cloudsimulator.entities.switch.RootSwitchActor
 import com.cloudsimulator.utils.ActorUtility
@@ -76,15 +78,25 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
           host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch)))
       })
 
+      // Create DataCenter Selection policy actor
       context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")
 
+      // Create VMs and assign to hosts
+      /*config.vmPayloadList.foreach(vm => {
+        println(vm)
+      })*/
 
+      // Pause thread for 5s to ensure all actors are created
+      Thread.sleep(5000)
 
-      self ! "SendWorkload"
+      self ! SendVMWorkload(config.vmPayloadList)
     }
 
-    case "SendWorkload" => {
+    case sendVMWorkload: SendVMWorkload => {
 
+      log.info("SimulatorActor::SimulatorActor:SendVMWorkload")
+
+      context.child("loadBalancer").get ! VMRequest(1, sendVMWorkload.vmPayloadList)
     }
   }
 
@@ -98,6 +110,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
   }
 
 }
+
+case class SendVMWorkload(vmPayloadList : List[VMPayload])
 
 
 final case class Start()

@@ -11,6 +11,7 @@ import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperti
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
 import com.cloudsimulator.entities.policies._
+import com.cloudsimulator.entities.policies.vmallocation._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor

@@ -63,7 +63,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       val selectionPolicy: ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
       // Request DataCenter selection policy to select DataCenter from provided list
-      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap(id))
+      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap.getOrElse(id, Seq()))
     }
 
     /**
@@ -109,7 +109,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       * only from the remaining DC.
       */
     case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayload, prevDcId) => {
-      //requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++= Seq(prevDcId)))
+      requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
 
       if(cloudletPayload.nonEmpty){
         self ! CloudletRequest(reqId,cloudletPayload)

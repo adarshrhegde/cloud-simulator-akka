@@ -1,9 +1,10 @@
 package com.cloudsimulator.config
 
+import com.cloudsimulator.entities.payload.VMPayload
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig)
+case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig, vmPayloadList : List[VMPayload])
 
 object Config {
 
@@ -27,8 +28,8 @@ object Config {
 
 case class DataCenterConfig(id : Long, location : String, switchList : List[SwitchConfig])
 
-case class VmConfig(id : Long, userId : Long, cloudletScheduler : String, mips : Long,
-                   noOfPes : Int, ram : Int, bw : Double)
+/*case class VmConfig(id : Long, userId : Long, cloudletScheduler : String, mips : Long,
+                   noOfPes : Int, ram : Int, bw : Double)*/
 
 case class CISConfig(id : Long)
 
