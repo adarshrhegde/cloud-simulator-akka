@@ -9,7 +9,7 @@ import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
 import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmScheduler, VmSchedulerActor}
 import com.cloudsimulator.entities.switch.RegisterHost
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
 
 import scala.collection.mutable.ListBuffer
@@ -136,8 +136,13 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       context.parent ! HostCheckedForRequiredVms(reqId, cloudletPayloads)
     }
 
+    /**
+      *
+      */
     case SendTimeSliceInfo(sliceInfo: TimeSliceInfo) => {
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
+
+      //TODO should be added at the vmScheduler level
       mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
 
       context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList)
@@ -151,6 +156,21 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
         new HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
+      /*context.child("vm-scheduler").foreach(vms =>{
+        vms ! ScheduleVms(sliceInfo, vmPathList)
+      })*/
+
+    }
+
+    /**
+      * Sender: VmScheduler
+      * Once the assigned time slice for VmScheduler is exhausted, it informs the datacenter
+      * to provide next time slice when available.
+      * Data center accumulates from all hosts and then informs the TimeActor.
+      */
+    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
+      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
+      context.parent ! TimeSliceCompleted(sliceInfo)
     }
   }
 }
