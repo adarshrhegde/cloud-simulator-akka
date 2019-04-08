@@ -28,7 +28,7 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
 
   private var hostCount : Int = _
 
-  private val hostResponseWaitTime = 5 // seconds
+  private val waitTime = 5 // seconds
 
 
   override def receive: Receive = {
@@ -46,7 +46,7 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
           * Schedule incoming message to self after processing duration.
           */
         context.system.scheduler.scheduleOnce(
-          new FiniteDuration(hostResponseWaitTime, TimeUnit.SECONDS), self, requestVmAllocation)
+          new FiniteDuration(waitTime, TimeUnit.SECONDS), self, requestVmAllocation)
       }
 
       isProcessing = true
@@ -70,12 +70,12 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
         })
 
       /*/**
-        * Schedule a message to self after a duration of $hostResponseWaitTime seconds
+        * Schedule a message to self after a duration of $waitTime seconds
         * for all hosts to respond with resource status. The scheduled message triggers
         * allocation strategy
         */
       context.system.scheduler.scheduleOnce(
-        new FiniteDuration(hostResponseWaitTime, TimeUnit.SECONDS), self, StartAllocation())*/
+        new FiniteDuration(waitTime, TimeUnit.SECONDS), self, StartAllocation())*/
 
 
       self ! StartAllocation
@@ -106,6 +106,9 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
 
       if(hostResources.size == hostCount){
         log.info("VmAllocationPolicy::VmAllocationPolicy:StartAllocation")
+
+        log.info(s"Allocation VM Payloads ${vmPayloads.foreach(_ => toString)} " +
+          s" to ${hostResources.foreach(_ => toString)}")
 
         val vmAllocationResult = vmAllocationPolicy.allocateVMs(vmPayloads, hostResources)
 

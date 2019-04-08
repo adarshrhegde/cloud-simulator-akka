@@ -13,9 +13,9 @@ import com.cloudsimulator.entities.vm.SendVmRequirement
   */
 class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging {
 
-  private val vmActorPaths : Seq[ActorRef] = Seq()
+  private var vmActorPaths : Seq[ActorRef] = Seq()
 
-  private val vmRequirementList : Seq[VmRequirement] = Seq()
+  private var vmRequirementList : Seq[VmRequirement] = Seq()
 
   private var slice : TimeSliceInfo = _
 
@@ -27,7 +27,9 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
       log.info("HostActor::VmSchedulerActor:ScheduleVMs")
 
-      vmActorPaths ++ scheduleVms.vmList
+      vmActorPaths = vmActorPaths ++ scheduleVms.vmList
+      log.info(s"VMActorPaths ${vmActorPaths.foreach(_ => toString)}")
+
       slice = scheduleVms.slice
       scheduleVms.vmList.foreach(vm => {
 
@@ -38,13 +40,15 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
     case CheckCanSchedule => {
 
+      log.info(s"VMActorPaths count ${vmActorPaths.size}")
+      log.info(s"VMRequirement count ${vmRequirementList.size}")
       if(vmActorPaths.size == vmRequirementList.size) {
 
         val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList)
 
         assignment.foreach(sliceAssigment => {
 
-          sliceAssigment.vmRef ! SendTimeSliceInfo(new TimeSliceInfo(sliceAssigment.sliceLength , slice.sliceId, slice.sliceStartSysTime))
+          sliceAssigment.vmRef ! SendTimeSliceInfo(new TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime))
         })
       }
     }
@@ -54,7 +58,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       log.info("VmActor::VmSchedulerActor:VmRequirement")
 
       // TODO check if vm already has already sent the requirement
-      vmRequirementList :+ vmRequirement
+      vmRequirementList = vmRequirementList :+ vmRequirement
 
       self ! CheckCanSchedule
     }

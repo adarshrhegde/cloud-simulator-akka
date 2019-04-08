@@ -1,5 +1,7 @@
 package com.cloudsimulator
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.config.Config
 import com.cloudsimulator.entities.CISActor
@@ -8,14 +10,19 @@ import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.loadbalancer.{LoadBalancerActor, VMRequest}
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies._
-import com.cloudsimulator.entities.policies.vmallocation.SimpleVmAllocationPolicy
+import com.cloudsimulator.entities.policies.vmallocation.{SimpleVmAllocationPolicy, StartAllocation}
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
 import com.cloudsimulator.entities.switch.RootSwitchActor
+import com.cloudsimulator.entities.time.TimeActor
 import com.cloudsimulator.utils.ActorUtility
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.FiniteDuration
 
 class SimulationActor(id:Int) extends Actor with ActorLogging {
+
+  // Import the execution context for message scheduling
+  import context._
 
   override def preStart(): Unit = {
     log.info(s"Starting the cloud simulation")
@@ -86,10 +93,10 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         println(vm)
       })*/
 
-      // Pause thread for 5s to ensure all actors are created
-      Thread.sleep(5000)
+      // Schedule message after 5s to ensure all actors are created
+      context.system.scheduler.scheduleOnce(
+        new FiniteDuration(5, TimeUnit.SECONDS), self, SendVMWorkload(config.vmPayloadList))
 
-      self ! SendVMWorkload(config.vmPayloadList)
     }
 
     case sendVMWorkload: SendVMWorkload => {
@@ -97,6 +104,17 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       log.info("SimulatorActor::SimulatorActor:SendVMWorkload")
 
       context.child("loadBalancer").get ! VMRequest(1, sendVMWorkload.vmPayloadList)
+
+      context.system.scheduler.scheduleOnce(
+        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+    }
+
+    case StartTimeActor => {
+
+      log.info("SimulationActor::SimulationActor:StartTimeActor")
+
+      context.actorOf(Props(new TimeActor(99, 100)), "time-actor")
+
     }
   }
 
@@ -115,6 +133,8 @@ case class SendVMWorkload(vmPayloadList : List[VMPayload])
 
 
 final case class Start()
+
+final case class StartTimeActor()
 
 
 

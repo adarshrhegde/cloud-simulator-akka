@@ -270,8 +270,9 @@ class DataCenterActor(id: Long,
 
       log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
       mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
+
       hostList.foreach(host=>{
-        context.actorSelection(ActorUtility.getActorRef(s"host-$host")) ! SendTimeSliceInfo(sliceInfo)
+        context.actorSelection(host) ! SendTimeSliceInfo(sliceInfo)
       })
     }
 

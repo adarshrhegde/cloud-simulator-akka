@@ -1,6 +1,6 @@
 package com.cloudsimulator.entities.host
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedForRequiredVms, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
@@ -37,6 +37,8 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
   extends Actor with ActorLogging {
 
   private val vmIdToRefMap: Map[Long, String] = Map()
+
+  private var vmRefList : Seq[ActorRef] = Seq()
 
   val mapSliceIdToVmCountRem: Map[Long, Long] = Map()
 
@@ -90,7 +92,9 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       val vmActor = context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
         allocateVm.vmPayload.userId, allocateVm.vmPayload.mips,
         allocateVm.vmPayload.numberOfPes, allocateVm.vmPayload.ram,
-        allocateVm.vmPayload.bw)), s"vm-")
+        allocateVm.vmPayload.bw)), s"vm-${allocateVm.vmPayload.payloadId}")
+
+      vmRefList = vmRefList :+ vmActor
 
       //add to vmList for the host
       vmIdToRefMap + (allocateVm.vmPayload.payloadId -> vmActor.path.toStringWithoutAddress)
@@ -136,9 +140,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
       mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
 
-      val vmPathList = context.children.filter(child => child.path.toStringWithoutAddress.contains("vm"))
-
-      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmPathList)
+      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList)
 
     }
 

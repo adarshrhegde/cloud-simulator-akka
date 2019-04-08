@@ -26,7 +26,7 @@ class VmActor(id : Long, userId : Long, mips : Long,
     }
 
     case (sendTimeSliceInfo: SendTimeSliceInfo) => {
-
+      print(s"Received Time Slice $sendTimeSliceInfo")
       // TODO : execute
     }
   }
