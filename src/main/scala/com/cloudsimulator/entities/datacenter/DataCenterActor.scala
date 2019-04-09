@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
-import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostforRequiredVMs, HostActor}
+import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
@@ -213,11 +213,15 @@ class DataCenterActor(id: Long,
     }*/
 
     /**
+      * Sender : LoadBalancerActor/RootSwitchActor
+      *
       * Check if the DC has a host running a VM on which the the cloudlet needs to be executed.
       * vmList contains the VM ids required by the cloudlets
       * The cloudlet have a vmId present which tells us on which VM it can run.
       */
     case CheckDCForRequiredVMs(id,cloudletPayloads,vmList) => {
+      //TODO change to RootSwitchActor
+      log.info(s"LoadBalancerActor/RootSwitchActor::DataCenterActor:CheckDCForRequiredVMs")
       // so we can update all cloudlets when their execution status is received.
       cloudletPayloadTrackerMap + (id -> cloudletPayloads)
 
@@ -227,7 +231,7 @@ class DataCenterActor(id: Long,
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
-        context.actorSelection(host) ! CheckHostforRequiredVMs(id,cloudletPayloads,vmList)
+        context.actorSelection(host) ! CheckHostForRequiredVMs(id,cloudletPayloads,vmList)
       })
     }
 
@@ -242,7 +246,7 @@ class DataCenterActor(id: Long,
     case HostCheckedForRequiredVms(reqId, cloudletPayloads) => {
       val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
       initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
-        if (cloudlet._1.cloudletId == cloudlet._2.cloudletId) {
+        if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
           cloudlet._1.status = cloudlet._2.status
           cloudlet._1.hostId = cloudlet._2.hostId
           cloudlet._1.dcId = cloudlet._2.dcId

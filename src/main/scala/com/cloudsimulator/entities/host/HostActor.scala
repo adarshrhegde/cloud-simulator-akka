@@ -112,11 +112,12 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     }
 
     /**
+      * Sender: DataCenterActor
       * Checks if the host is running a VM which is required by the cloudlet.
       * If it is then tag the cloudlet as processing and send to the VM.
       */
-    case CheckHostforRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
-
+    case CheckHostForRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
+      log.info(s"DataCenterActor::HostActor:CheckHostForRequiredVMs")
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
       val newCloudlets: List[CloudletPayload] = cloudletPayloads
         .map(cloudlet => {
@@ -186,6 +187,6 @@ case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
 
 case class RegisterWithSwitch()
 
-case class CheckHostforRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload], vmList: List[Long])
+case class CheckHostForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload], vmList: List[Long])
 
 case class CreateVmScheduler()

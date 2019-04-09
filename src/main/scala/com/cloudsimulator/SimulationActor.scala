@@ -3,12 +3,13 @@ package com.cloudsimulator
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
+import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.config.Config
 import com.cloudsimulator.entities.CISActor
 import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateVmAllocationPolicy, DataCenterActor}
 import com.cloudsimulator.entities.host.HostActor
-import com.cloudsimulator.entities.loadbalancer.{LoadBalancerActor, VMRequest}
-import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.loadbalancer.{CloudletRequest, LoadBalancerActor, VMRequest}
+import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.policies.vmallocation.{SimpleVmAllocationPolicy, StartAllocation}
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
@@ -105,6 +106,26 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
       context.child("loadBalancer").get ! VMRequest(1, sendVMWorkload.vmPayloadList)
 
+
+//      context.system.scheduler.scheduleOnce(
+//        new FiniteDuration(5, TimeUnit.SECONDS), self, SendCloudletPayload(config.cloudletPayloadList))
+      context.system.scheduler.scheduleOnce(
+        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+    }
+
+    //TODO should be sent when all the VMs are created and not after 5 seconds.
+    case sendCloudletPayload: SendCloudletPayload => {
+
+      log.info("SimulatorActor::SimulatorActor:SendCloudletPayload")
+      val cloudletStatusUpdated: List[CloudletPayload] = sendCloudletPayload.cloudletPayloadList
+        .map(cloudlet => {
+          cloudlet.status = CloudletPayloadStatus.SENT
+          cloudlet
+        })
+      context.child("loadBalancer").foreach(lb => {
+        lb ! CloudletRequest(2, sendCloudletPayload.cloudletPayloadList)
+      })
+
       context.system.scheduler.scheduleOnce(
         new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
     }
@@ -130,6 +151,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 }
 
 case class SendVMWorkload(vmPayloadList : List[VMPayload])
+
+case class SendCloudletPayload(cloudletPayloadList:List[CloudletPayload])
 
 
 final case class Start()

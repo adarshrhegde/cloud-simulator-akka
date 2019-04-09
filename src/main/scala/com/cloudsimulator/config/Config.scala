@@ -1,10 +1,12 @@
 package com.cloudsimulator.config
 
-import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig], hostList : List[HostConfig], cis : CISConfig, vmPayloadList : List[VMPayload])
+case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig],
+                  hostList : List[HostConfig], cis : CISConfig,
+                  vmPayloadList : List[VMPayload], cloudletPayloadList: List[CloudletPayload])
 
 object Config {
 
