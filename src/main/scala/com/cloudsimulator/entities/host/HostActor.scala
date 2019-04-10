@@ -118,6 +118,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       */
     case CheckHostForRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
       log.info(s"DataCenterActor::HostActor:CheckHostForRequiredVMs")
+      log.info(s"CheckHostForRequiredVMs:$vmIdToRefMap")
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
       val newCloudlets: List[CloudletPayload] = cloudletPayloads
         .map(cloudlet => {

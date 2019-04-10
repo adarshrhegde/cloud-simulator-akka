@@ -25,6 +25,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
   // Import the execution context for message scheduling
   import context._
 
+  val config = Config.loadConfig.get
+
   override def preStart(): Unit = {
     log.info(s"Starting the cloud simulation")
   }
@@ -36,8 +38,6 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
   override def receive: Receive = {
 
     case Start => {
-
-      val config = Config.loadConfig.get
 
       log.debug(s"Picked up configuration $config")
 
@@ -107,10 +107,10 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       context.child("loadBalancer").get ! VMRequest(1, sendVMWorkload.vmPayloadList)
 
 
-//      context.system.scheduler.scheduleOnce(
-//        new FiniteDuration(5, TimeUnit.SECONDS), self, SendCloudletPayload(config.cloudletPayloadList))
       context.system.scheduler.scheduleOnce(
-        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+        new FiniteDuration(5, TimeUnit.SECONDS), self, SendCloudletPayload(config.cloudletPayloadList))
+//      context.system.scheduler.scheduleOnce(
+//        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
     }
 
     //TODO should be sent when all the VMs are created and not after 5 seconds.

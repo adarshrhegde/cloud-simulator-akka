@@ -245,6 +245,7 @@ class DataCenterActor(id: Long,
       */
     case HostCheckedForRequiredVms(reqId, cloudletPayloads) => {
       val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
+
       initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
         if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
           cloudlet._1.status = cloudlet._2.status

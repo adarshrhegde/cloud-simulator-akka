@@ -1,14 +1,16 @@
 package com.cloudsimulator.cloudsimutils
 
 /**
-  * Enum for CloudletPayload status
+  * CloudletPayload status
   * Maintains the status of the cloudletPayload
   */
-object CloudletPayloadStatus extends Enumeration {
-  type CloudletPayloadStatus = Value
-  var NOT_INITIATED, SENT, ASSIGNED_TO_VM, RUNNING, PAUSED, COMPLETED = Value
-  def apply(statusString: String): Value = {
+object CloudletPayloadStatus {
 
-    CloudletPayloadStatus.withName(statusString)
-  }
+  val NOT_INITIATED: Int = -1
+  val SENT: Int = 0
+  val ASSIGNED_TO_VM: Int = 1
+  val RUNNING: Int = 2
+  val PAUSED: Int = 3
+  val COMPLETED: Int = 4
+
 }
