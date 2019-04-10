@@ -36,11 +36,11 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
                 var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
   extends Actor with ActorLogging {
 
-  private val vmIdToRefMap: Map[Long, String] = Map()
+  private var vmIdToRefMap: Map[Long, String] = Map()
 
   private var vmRefList : Seq[ActorRef] = Seq()
 
-  val mapSliceIdToVmCountRem: Map[Long, Long] = Map()
+  var mapSliceIdToVmCountRem: Map[Long, Long] = Map()
 
   override def preStart(): Unit = {
 
@@ -97,7 +97,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       vmRefList = vmRefList :+ vmActor
 
       //add to vmList for the host
-      vmIdToRefMap + (allocateVm.vmPayload.payloadId -> vmActor.path.toStringWithoutAddress)
+      vmIdToRefMap = vmIdToRefMap + (allocateVm.vmPayload.payloadId -> vmActor.path.toStringWithoutAddress)
 
       // send the allocation success in reverse direction
       val networkPacketProperties = new NetworkPacketProperties(
@@ -145,7 +145,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
 
       //TODO should be added at the vmScheduler level
-      mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
+      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
 
       context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList)
 

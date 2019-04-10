@@ -16,10 +16,10 @@ import com.cloudsimulator.utils.ActorUtility
   */
 class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
-  val requestIdMap: Map[Long, RequestStatus.Value] = Map()
+  var requestIdMap: Map[Long, RequestStatus.Value] = Map()
 
   // this map can be common for both VM and Cloudlet payload
-  val requestIdToCheckedDcMap: Map[Long,Seq[Long]]=Map()
+  var requestIdToCheckedDcMap: Map[Long,Seq[Long]]=Map()
 
   override def receive: Receive = {
 
@@ -29,7 +29,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       * Add to the requestMap and request for the DCList from the CIS
       */
     case CloudletRequest(id, cloudletPayloads: List[CloudletPayload]) => {
-      requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
+      requestIdMap=requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
@@ -109,7 +109,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       * only from the remaining DC.
       */
     case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayload, prevDcId) => {
-      requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
 
       if(cloudletPayload.nonEmpty){
         self ! CloudletRequest(reqId,cloudletPayload)

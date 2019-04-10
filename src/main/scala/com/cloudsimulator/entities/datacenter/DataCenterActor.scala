@@ -48,11 +48,11 @@ class DataCenterActor(id: Long,
 
 //  private val vmToHostMap: Map[Long, Long] = Map()
 
-  private val cloudletPayloadTrackerMap:Map[Long,List[CloudletPayload]]=Map()
+  var cloudletPayloadTrackerMap:Map[Long,List[CloudletPayload]]=Map()
 
-  private val cloudletReqCountFromHost:Map[Long,Long]=Map()
+  var cloudletReqCountFromHost: Map[Long, Long] = Map()
 
-  val mapSliceIdToHostCountRem: Map[Long, Long] = Map()
+  var mapSliceIdToHostCountRem: Map[Long, Long] = Map()
 
   override def preStart(): Unit = {
 
@@ -223,11 +223,11 @@ class DataCenterActor(id: Long,
       //TODO change to RootSwitchActor
       log.info(s"LoadBalancerActor/RootSwitchActor::DataCenterActor:CheckDCForRequiredVMs")
       // so we can update all cloudlets when their execution status is received.
-      cloudletPayloadTrackerMap + (id -> cloudletPayloads)
+      cloudletPayloadTrackerMap=cloudletPayloadTrackerMap + (id -> cloudletPayloads)
 
       // count kept to check if responses from all the hosts is received
       //We have to receive response from all the host since we have a vmId present in the cloudlet.
-      cloudletReqCountFromHost + (id->hostList.size)
+      cloudletReqCountFromHost=cloudletReqCountFromHost + (id->hostList.size)
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
@@ -244,6 +244,8 @@ class DataCenterActor(id: Long,
       * Send all the remaining cloudlets to the LB.
       */
     case HostCheckedForRequiredVms(reqId, cloudletPayloads) => {
+      log.info(s"HostActor::DataCenterActor:HostCheckedForRequiredVms:$reqId")
+
       val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
 
       initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
@@ -253,8 +255,24 @@ class DataCenterActor(id: Long,
           cloudlet._1.dcId = cloudlet._2.dcId
         }
       })
+//      val valueOpt: Option[List[CloudletPayload]] = cloudletPayloadTrackerMap.get(reqId)
+//
+//      valueOpt match {
+//        case Some(value) => {
+//          value.zip(cloudletPayloads).foreach(cloudlet => {
+//            if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
+//              cloudlet._1.status = cloudlet._2.status
+//              cloudlet._1.hostId = cloudlet._2.hostId
+//              cloudlet._1.dcId = cloudlet._2.dcId
+//            }
+//          })
+//        }
+//        case None => log.error(s"HostCheckedForRequiredVms:$reqId not present on dc-$id")
+//      }
+
+
       // reduce cloudletReqCountFromHost for the reqId
-      cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))
+      cloudletReqCountFromHost=cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))
 
       // iterate over all cloudlets and check if any for assigned status,
       // send the remaining cloudlets to LB, so it can be sent to another DC.
@@ -274,7 +292,7 @@ class DataCenterActor(id: Long,
     case SendTimeSliceInfo(sliceInfo:TimeSliceInfo) =>{
 
       log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
-      mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
+      mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
 
       hostList.foreach(host=>{
         context.actorSelection(host) ! SendTimeSliceInfo(sliceInfo)
@@ -290,7 +308,7 @@ class DataCenterActor(id: Long,
       log.info("DataCenterActor::HostActor:TimeSliceCompleted")
       val newCount:Option[Long]=mapSliceIdToHostCountRem.get(sliceInfo.sliceId).map(_-1)
       newCount.filter(_==0).foreach(_ => context.actorSelection(ActorUtility.getActorRef("TimeActor")) ! TimeSliceCompleted(sliceInfo))
-      newCount.filter(_!=0).map(count => mapSliceIdToHostCountRem+(sliceInfo.sliceId -> (count-1)))
+      newCount.filter(_!=0).foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem+(sliceInfo.sliceId -> (count-1)))
     }
 
 
