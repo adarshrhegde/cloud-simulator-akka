@@ -8,7 +8,7 @@ trait DataCenterSelectionPolicy {
     * @param dcList - The list of datacenter actor ids
     * @return
     */
-  def selectDC(dcList : List[Long]) : Option[Long]
+  def selectDC(dcList : List[Long], excludeDcList: Seq[Long]) : Option[Long]
 
 
 }

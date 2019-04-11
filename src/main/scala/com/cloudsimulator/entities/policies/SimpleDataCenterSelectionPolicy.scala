@@ -7,8 +7,11 @@ class SimpleDataCenterSelectionPolicy extends DataCenterSelectionPolicy {
     * @param dcList - The list of datacenter actor ids
     * @return
     */
-  override def selectDC(dcList: List[Long]): Option[Long] = {
+  override def selectDC(dcList: List[Long], excludeDcList: Seq[Long]): Option[Long] = {
 
-    Option(dcList(0))
+    Option(dcList
+      .filterNot(dc =>
+      excludeDcList.count(exDc => dc == exDc) > 0
+    )(0))
   }
 }

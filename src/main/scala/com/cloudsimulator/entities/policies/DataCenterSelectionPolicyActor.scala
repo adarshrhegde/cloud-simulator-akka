@@ -12,7 +12,8 @@ class DataCenterSelectionPolicyActor(selectionPolicy: DataCenterSelectionPolicy)
     case FindDataCenter(id, payloads: List[Payload], dcList, excludeDcList: Seq[Long]) => {
       log.info(s"LoadBalancerActor::DataCenterSelectionPolicyActor:FindDataCenter")
       log.info(s"Total DC count -> ${dcList.size}")
-      val dc: Option[Long] = selectionPolicy.selectDC(dcList)
+
+      val dc: Option[Long] = selectionPolicy.selectDC(dcList, excludeDcList)
       sender() ! ReceiveDataCenterForVm(id, payloads, dc)
     }
   }
