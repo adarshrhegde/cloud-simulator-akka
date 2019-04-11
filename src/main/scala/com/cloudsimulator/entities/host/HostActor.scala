@@ -11,6 +11,7 @@ import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmSchedule
 import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
+import com.cloudsimulator.utils.ActorUtility
 
 import scala.collection.mutable.ListBuffer
 
@@ -56,7 +57,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info(s"HostActor::HostActor:CreateVmScheduler:$id")
 
       context.actorOf(Props(new VmSchedulerActor(vmScheduler)),
-        "vm-scheduler")
+        ActorUtility.vmScheduler)
 
     }
 
@@ -103,6 +104,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       val networkPacketProperties = new NetworkPacketProperties(
         allocateVm.networkPacketProperties.receiver, allocateVm.networkPacketProperties.sender)
 
+      log.info(s"DataCenterActor:AllocateVm:vm-${allocateVm.vmPayload.payloadId} allocated on host-$id")
       sender() ! VmAllocationSuccess(networkPacketProperties, allocateVm.vmPayload)
     }
 

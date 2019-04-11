@@ -66,19 +66,14 @@ class DataCenterActor(id: Long,
     case CreateHost(hostId, hostProps : Props) => {
       log.info("SimulationActor::DataCenterActor:CreateHost")
       log.info(s"Creating host $hostId within DataCenter $id")
-      val hostActor = context.actorOf(hostProps, s"host-$hostId")
+      val hostActor = context.actorOf(hostProps, s"${ActorUtility.host}-$hostId")
       hostList += hostActor.path.toStringWithoutAddress
     }
 
     case CreateVmAllocationPolicy(vmAllocationPolicy) => {
       log.info("SimulationActor::DataCenterActor:CreateVmAllocationPolicy")
-      context.actorOf(Props(new VmAllocationPolicyActor(vmAllocationPolicy)), "vm-allocation-policy")
+      context.actorOf(Props(new VmAllocationPolicyActor(vmAllocationPolicy)), ActorUtility.vmAllocationPolicy)
     }
-
-    /*case CisAvailable =>{
-      log.info("DataCenterActor::DataCenterActor:preStart()")
-      context.actorSelection(ActorUtility.getActorRef(ActorUtility.simulationActor)) ! CisAvailable
-    }*/
 
     /**
       * Register with CIS
@@ -102,7 +97,7 @@ class DataCenterActor(id: Long,
       // update request-LB mapping to keep track of LB that sent the request
       requestToLBMap += (id -> sender().path.toStringWithoutAddress)
 
-      val vmAllocationPolicyActor = context.child("vm-allocation-policy").get
+      val vmAllocationPolicyActor = context.child(ActorUtility.vmAllocationPolicy).get
 
       // ask Vm Allocation Policy actor to identify vm-host mapping
       vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList)
@@ -255,21 +250,6 @@ class DataCenterActor(id: Long,
           cloudlet._1.dcId = cloudlet._2.dcId
         }
       })
-//      val valueOpt: Option[List[CloudletPayload]] = cloudletPayloadTrackerMap.get(reqId)
-//
-//      valueOpt match {
-//        case Some(value) => {
-//          value.zip(cloudletPayloads).foreach(cloudlet => {
-//            if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
-//              cloudlet._1.status = cloudlet._2.status
-//              cloudlet._1.hostId = cloudlet._2.hostId
-//              cloudlet._1.dcId = cloudlet._2.dcId
-//            }
-//          })
-//        }
-//        case None => log.error(s"HostCheckedForRequiredVms:$reqId not present on dc-$id")
-//      }
-
 
       // reduce cloudletReqCountFromHost for the reqId
       cloudletReqCountFromHost=cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))
@@ -312,16 +292,6 @@ class DataCenterActor(id: Long,
     }
 
 
-    // called after the DC actor is created
-//    case CreateCloudletAllocationPolicyActor(id,cloudletAssignmentPolicy:CloudletAssignmentPolicy) =>{
-//      context.actorOf(Props(new CloudletAssignmentPolicyActor(cloudletAssignmentPolicy)), s"cloudletAllocationPolicy-$id")
-//    }
-
-    /*
-    case CisUp =>{
-      log.info("DataCenterActor::DataCenterActor:CisUp")
-      self ! RegisterWithCIS
-    }*/
   }
 
 }
