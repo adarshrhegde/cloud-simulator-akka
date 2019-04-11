@@ -29,7 +29,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       * Sender : HostActor
       * Request to schedule the Vms on the host for the time slice
       */
-    case (scheduleVms: ScheduleVms) => {
+    case scheduleVms: ScheduleVms => {
 
       log.info("HostActor::VmSchedulerActor:ScheduleVMs")
 
@@ -60,7 +60,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
         // Assign the time slice info to each vm
         assignment.foreach(sliceAssigment => {
 
-          sliceAssigment.vmRef ! TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime)
+          sliceAssigment.vmRef ! SendTimeSliceInfo(new TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime))
         })
       }
     }

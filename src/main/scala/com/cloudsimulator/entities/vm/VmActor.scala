@@ -34,10 +34,10 @@ class VmActor(id : Long, userId : Long, mips : Long,
       * The cloudlets details and the timeslice is provide to the CloudletScheduler
       * and execution of the cloudlets is triggered.
       */
-    case (timeSliceInfo: TimeSliceInfo) => {
-      print(s"Received Time Slice $timeSliceInfo")
-
+    case sendTimeSliceInfo: SendTimeSliceInfo => {
+      print(s"Received Time Slice $sendTimeSliceInfo")
       // TODO : execute
+      timeSliceInfo = sendTimeSliceInfo.sliceInfo
     }
   }
 }
