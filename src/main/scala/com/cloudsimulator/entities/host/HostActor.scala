@@ -104,7 +104,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       val networkPacketProperties = new NetworkPacketProperties(
         allocateVm.networkPacketProperties.receiver, allocateVm.networkPacketProperties.sender)
 
-      log.info(s"DataCenterActor:AllocateVm:vm-${allocateVm.vmPayload.payloadId} allocated on host-$id")
+      log.info(s"DataCenterActor:AllocateVm: vm-${allocateVm.vmPayload.payloadId} allocated on host-$id")
       sender() ! VmAllocationSuccess(networkPacketProperties, allocateVm.vmPayload)
     }
 
@@ -121,6 +121,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     case CheckHostForRequiredVMs(reqId, cloudletPayloads, cloudletVMList) => {
       log.info(s"DataCenterActor::HostActor:CheckHostForRequiredVMs")
       log.info(s"CheckHostForRequiredVMs:$vmIdToRefMap")
+      log.debug(s"CheckHostForRequiredVMs:CloudletPayload:$cloudletPayloads")
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
       val newCloudlets: List[CloudletPayload] = cloudletPayloads
         .map(cloudlet => {
