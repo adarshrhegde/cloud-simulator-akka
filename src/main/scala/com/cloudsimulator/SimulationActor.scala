@@ -27,6 +27,9 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
   val config = Config.loadConfig.get
 
+  val actorCount : ActorCount = new ActorCount
+
+
   override def preStart(): Unit = {
     log.info(s"Starting the cloud simulation")
   }
@@ -158,6 +161,16 @@ case class SendCloudletPayload(cloudletPayloadList:List[CloudletPayload])
 final case class Start()
 
 final case class StartTimeActor()
+
+// Used for maintaining count of actors, to avoid using delays
+class ActorCount {
+
+  var actorCount : Int = 0
+  var actorCreatedCount : Int = 0
+
+  var vmCount : Int = 0
+  var vmCreatedCount : Int = 0
+}
 
 
 

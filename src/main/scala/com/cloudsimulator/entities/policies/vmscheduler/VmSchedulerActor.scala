@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.policies.vmscheduler
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.cloudsimulator.entities.host.HostResource
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.SendVmRequirement
@@ -19,11 +20,16 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
   private var slice : TimeSliceInfo = _
 
+  private var hostResource : HostResource = _
+
   override def receive: Receive = {
 
+
+    /**
+      * Sender : HostActor
+      * Request to schedule the Vms on the host for the time slice
+      */
     case (scheduleVms: ScheduleVms) => {
-
-
 
       log.info("HostActor::VmSchedulerActor:ScheduleVMs")
 
@@ -31,6 +37,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       log.info(s"VMActorPaths ${vmActorPaths.foreach(_ => toString)}")
 
       slice = scheduleVms.slice
+      hostResource = scheduleVms.hostResource
+
       scheduleVms.vmList.foreach(vm => {
 
         vm ! SendVmRequirement()
@@ -38,35 +46,52 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
     }
 
+    /**
+      * Check if all Vms have responded with the requirements (required to perform scheduling)
+      * If true, perform VM scheduling
+      */
     case CheckCanSchedule => {
 
-      log.info(s"VMActorPaths count ${vmActorPaths.size}")
-      log.info(s"VMRequirement count ${vmRequirementList.size}")
       if(vmActorPaths.size == vmRequirementList.size) {
 
-        val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList)
+        // Invoke injected VM scheduling logic
+        val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList, hostResource)
 
+        // Assign the time slice info to each vm
         assignment.foreach(sliceAssigment => {
 
-          sliceAssigment.vmRef ! SendTimeSliceInfo(new TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime))
+          sliceAssigment.vmRef ! TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime)
         })
       }
     }
 
+    /**
+      * Receive VM Requirement info from VM and maintain it
+      */
     case vmRequirement: VmRequirement => {
 
       log.info("VmActor::VmSchedulerActor:VmRequirement")
 
-      // TODO check if vm already has already sent the requirement
-      vmRequirementList = vmRequirementList :+ vmRequirement
+      vmRequirementList.count(vm => vm.vmId == vmRequirement.vmId) match {
 
-      self ! CheckCanSchedule
+        case 0 => {
+          vmRequirementList = vmRequirementList :+ vmRequirement
+
+          self ! CheckCanSchedule
+        }
+        case _ => {
+
+          log.info(s"Already received requirement info from VM ${vmRequirement.vmId}")
+        }
+
+      }
+
     }
       //TODO call TimeSliceCompleted on the host when all timeslices are exhausted
   }
 }
 
-case class ScheduleVms(slice : TimeSliceInfo, vmList : Iterable[ActorRef]) extends NetworkPacket
+case class ScheduleVms(slice : TimeSliceInfo, vmList : Iterable[ActorRef], hostResource: HostResource) extends NetworkPacket
 
 case class VmRequirement(vmId : Long, ref : ActorRef, mips : Long, noOfPes : Int)
 

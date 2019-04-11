@@ -150,7 +150,8 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       //TODO should be added at the vmScheduler level
       mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
 
-      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList)
+      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
+      availableStorage, availableBw))
 
     }
 
