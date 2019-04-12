@@ -151,7 +151,7 @@ class DataCenterActor(id: Long,
           requestToLBMap.get(receiveVmAllocation.requestId).get)
 
         // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
-        loadBalancerActor ! FailedVmCreation(receiveVmAllocation.requestId,
+        loadBalancerActor ! FailedVmCreation(id, receiveVmAllocation.requestId,
           receiveVmAllocation.vmAllocationResult.failedAllocationVms)
 
       }

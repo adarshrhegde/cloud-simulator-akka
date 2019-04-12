@@ -44,11 +44,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
     case VMRequest(id, vmPayloads: List[VMPayload]) => {
 
       log.info(s"User::LoadBalancerActor:VMRequest:$id")
-      requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
-
-      // Initialize empty DC list for the request
-      if(!requestIdToCheckedDcMap.contains(id))
-        requestIdToCheckedDcMap + (id -> Seq[Long]())
+      requestIdMap = requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
@@ -83,9 +79,6 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
         case None => log.info(s"No DataCenter can be selected for request ID $id")
 
         case Some(dcId) => {
-
-          var dcList :Seq[Long] = requestIdToCheckedDcMap(id)
-          dcList = dcList :+ dcId
 
           val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
 
@@ -123,6 +116,8 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case failedVmCreation: FailedVmCreation => {
 
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.dcId -> (requestIdToCheckedDcMap(failedVmCreation.dcId) ++ Seq(failedVmCreation.dcId)))
+
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
       // Re-Start the allocation process for the failed Vms
       cis ! RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
@@ -135,13 +130,16 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       * For the current reqId the prevDcId is recorded and the DCSelectionPolicy selects
       * only from the remaining DC.
       */
-    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayload, prevDcId) => {
+    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayloads, prevDcId) => {
+
       requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
 
-      if(cloudletPayload.nonEmpty){
-        self ! CloudletRequest(reqId,cloudletPayload)
-      }
+      if(cloudletPayloads.nonEmpty){
+        // Re-Start the allocation process for the failed cloudlets
+        val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+        cis ! RequestDataCenterList(reqId, cloudletPayloads)
 
+      }
     }
 
   }
@@ -158,7 +156,7 @@ case class VMRequest(requestId: Long, vmPayloads: List[VMPayload]) extends Netwo
 
 case class ReceiveDataCenterList(requestId: Long, payloads: List[Payload], dcList: List[Long]) extends NetworkPacket
 
-case class FailedVmCreation(requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
+case class FailedVmCreation(dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
 

@@ -69,15 +69,6 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
           hostActor ! RequestHostResourceStatus(requestId)
         })
 
-      /*/**
-        * Schedule a message to self after a duration of $waitTime seconds
-        * for all hosts to respond with resource status. The scheduled message triggers
-        * allocation strategy
-        */
-      context.system.scheduler.scheduleOnce(
-        new FiniteDuration(waitTime, TimeUnit.SECONDS), self, StartAllocation())*/
-
-
       self ! StartAllocation
     }
 

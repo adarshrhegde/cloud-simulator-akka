@@ -8,6 +8,3 @@ trait Switch {
   def processPacketUp(destination : String, cloudSimulatorMessage : NetworkPacket) : Unit
 }
 
-
-
-//case class NetworkPacket(cloudSimulatorMessage : CloudSimulatorMessage)
