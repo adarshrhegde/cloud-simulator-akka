@@ -9,8 +9,6 @@ import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostFor
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
-import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
-import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.policies.vmallocation._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
@@ -178,34 +176,6 @@ class DataCenterActor(id: Long,
       log.info(s"VM ${vmAllocationSuccess.vmPayload.payloadId} successfully created")
     }
 
-      // old logic - To be deleted
-      /*case CanAllocateVmTrue(vmPayloadTracker) => {
-      log.info(s"HostActor::DataCenterActor:CanAllocateVmTrue:$vmPayloadTracker")
-
-      vmPayloadTrackerList.filter(tracker => tracker.requestId == vmPayloadTracker.requestId
-        && tracker.vmPayload.payloadId == vmPayloadTracker.vmPayload.payloadId
-        && tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED).foreach(tracker => {
-
-        if(tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED)
-
-          log.info(s"Sending allocation message to Host ")
-          sender() ! AllocateVm(vmPayloadTracker)
-
-      })
-
-    }
-    case VmAllocationSuccess(vmPayloadTracker) => {
-
-      log.info(s"HostActor::DataCenterActor:VmAllocationSuccess:$vmPayloadTracker")
-
-      vmPayloadTrackerList.filter(tracker => tracker.requestId == vmPayloadTracker.requestId
-      && tracker.vmPayload.payloadId == vmPayloadTracker.vmPayload.payloadId
-      && tracker.payloadStatus == VMPayloadStatus.NOT_ALLOCATED).remove(0)
-
-      vmPayloadTrackerList += new VMPayloadTracker(vmPayloadTracker.requestId, vmPayloadTracker.vmPayload,
-        VMPayloadStatus.ALLOCATED)
-
-    }*/
 
     /**
       * Sender : LoadBalancerActor/RootSwitchActor

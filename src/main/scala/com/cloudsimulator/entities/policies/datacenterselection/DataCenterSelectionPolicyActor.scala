@@ -1,4 +1,4 @@
-package com.cloudsimulator.entities.policies
+package com.cloudsimulator.entities.policies.datacenterselection
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.entities.loadbalancer.ReceiveDataCenterForVm
@@ -8,7 +8,7 @@ class DataCenterSelectionPolicyActor(selectionPolicy: DataCenterSelectionPolicy)
   extends Actor with ActorLogging {
 
   override def receive: Receive = {
-    //TODO exclude the datacenters from the excludedDCList
+    //TODO DONE : exclude the datacenters from the excludedDCList
     case FindDataCenter(id, payloads: List[Payload], dcList, excludeDcList: Seq[Long]) => {
       log.info(s"LoadBalancerActor::DataCenterSelectionPolicyActor:FindDataCenter")
       log.info(s"Total DC count -> ${dcList.size}")

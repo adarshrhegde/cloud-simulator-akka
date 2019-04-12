@@ -11,6 +11,7 @@ import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.loadbalancer.{CloudletRequest, LoadBalancerActor, VMRequest}
 import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.policies._
+import com.cloudsimulator.entities.policies.datacenterselection.{DataCenterSelectionPolicyActor, SimpleDataCenterSelectionPolicy}
 import com.cloudsimulator.entities.policies.vmallocation.{SimpleVmAllocationPolicy, StartAllocation}
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
 import com.cloudsimulator.entities.switch.RootSwitchActor

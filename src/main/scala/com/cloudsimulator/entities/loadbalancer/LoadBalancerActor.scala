@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
-import com.cloudsimulator.entities.policies.FindDataCenter
+import com.cloudsimulator.entities.policies.datacenterselection.FindDataCenter
 import com.cloudsimulator.utils.ActorUtility
 
 /**
@@ -46,6 +46,10 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       log.info(s"User::LoadBalancerActor:VMRequest:$id")
       requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
+      // Initialize empty DC list for the request
+      if(!requestIdToCheckedDcMap.contains(id))
+        requestIdToCheckedDcMap + (id -> Seq[Long]())
+
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
       // Request CIS to send DataCenter list
@@ -63,7 +67,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       val selectionPolicy: ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
       // Request DataCenter selection policy to select DataCenter from provided list
-      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap.getOrElse(id, Seq()))
+      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap.getOrElse(id, Seq[Long]()))
     }
 
     /**
@@ -74,31 +78,53 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
       log.info(s"DataCenterSelectionPolicyActor::LoadBalancerActor:ReceiveDataCenterForVm:$id")
 
-      val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+      dc match {
 
-      val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dc.get}"))
+        case None => log.info(s"No DataCenter can be selected for request ID $id")
 
-      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
-        dcActor.pathString)
+        case Some(dcId) => {
 
-      if (isVmPayload(payloads)) {
-        // Request DataCenter to create VMs in its hosts
-        // Send message to root switch to forward to DataCenter
-        rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
-        //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
+          var dcList :Seq[Long] = requestIdToCheckedDcMap(id)
+          dcList = dcList :+ dcId
+
+          val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+
+          val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dcId}"))
+
+          val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+            dcActor.pathString)
+
+          if (isVmPayload(payloads)) {
+            // Request DataCenter to create VMs in its hosts
+            // Send message to root switch to forward to DataCenter
+            rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
+            //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
+          }
+          else {
+            val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
+            val vmList:List[Long]=cloudletPayload.map(_.vmId)
+            //send the cloudlet data to the dc and it takes the necessary steps
+            //TODO change dcActor to rootSwitchActor
+            //TODO vmList can be removed
+            dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
+          }
+
+        }
       }
-      else {
-        val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
-        val vmList:List[Long]=cloudletPayload.map(_.vmId)
-        //send the cloudlet data to the dc and it takes the necessary steps
-        //TODO change dcActor to rootSwitchActor
-        //TODO vmList can be removed
-        dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
-      }
+
+
+
     }
 
+    /**
+      * FailedVmCreation : DataCenter actor returns the list of Vms that
+      * could not be created. Loadbalancer will attempt to allocate the VM on
+      * another DataCenter
+      */
     case failedVmCreation: FailedVmCreation => {
-      // TODO Send failed vms to another DataCenter
+
+      // Re-Start the allocation process for the failed Vms
+      RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
 
     }
 
