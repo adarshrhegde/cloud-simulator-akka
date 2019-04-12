@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.policies
 
-import com.cloudsimulator.entities.payload.CloudletPayload
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
+
 
 /**
   * The actual policies will implement this trait.

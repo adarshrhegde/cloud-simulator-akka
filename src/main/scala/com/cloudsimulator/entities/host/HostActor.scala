@@ -2,9 +2,9 @@ package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedForRequiredVms, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
 import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmScheduler, VmSchedulerActor}
@@ -125,12 +125,12 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
       val newCloudlets: List[CloudletPayload] = cloudletPayloads
         .map(cloudlet => {
-          if (cloudlet.status.equals(CloudletPayloadStatus.SENT) &&
+          if (/*cloudlet.status.equals(CloudletPayloadStatus.SENT) &&*/
             vmIdToRefMap.contains(cloudlet.vmId)) {
 
             //TODO check the resources for cloudlet and VM are compatible
 
-            cloudlet.status = CloudletPayloadStatus.ASSIGNED_TO_VM
+//            cloudlet.status = CloudletPayloadStatus.ASSIGNED_TO_VM
             cloudlet.hostId = id
             cloudlet.dcId = dataCenterId
             context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(reqId, cloudlet)
@@ -138,7 +138,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
           cloudlet
         })
       //send response(new cloudlets) back to the DC
-      context.parent ! HostCheckedForRequiredVms(reqId, cloudletPayloads)
+      context.parent ! HostCheckedForRequiredVms(reqId, newCloudlets)
     }
 
     /**

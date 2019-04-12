@@ -8,7 +8,8 @@ import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
+import com.cloudsimulator.entities.payload.VMPayload
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.policies.CheckAssignmentOfCloudlets
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.policies.vmallocation._
@@ -245,7 +246,7 @@ class DataCenterActor(id: Long,
 
       initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
         if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
-          cloudlet._1.status = cloudlet._2.status
+//          cloudlet._1.status = cloudlet._2.status
           cloudlet._1.hostId = cloudlet._2.hostId
           cloudlet._1.dcId = cloudlet._2.dcId
         }
@@ -256,12 +257,12 @@ class DataCenterActor(id: Long,
 
       // iterate over all cloudlets and check if any for assigned status,
       // send the remaining cloudlets to LB, so it can be sent to another DC.
-      if (cloudletReqCountFromHost(reqId) > 0) {
+      if (cloudletReqCountFromHost(reqId) == 0) {
         val remainingCloudlets: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
           .filter(cloudlet=>{
             cloudlet.dcId != id
           })
-        context.actorSelection(ActorUtility.getActorRef("loadBalancer")) ! ReceiveRemainingCloudletsFromDC(reqId,cloudletPayloads,id)
+        context.actorSelection(ActorUtility.getActorRef("loadBalancer")) ! ReceiveRemainingCloudletsFromDC(reqId,remainingCloudlets,id)
       }
     }
 

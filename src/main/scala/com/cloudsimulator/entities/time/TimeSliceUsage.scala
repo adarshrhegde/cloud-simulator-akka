@@ -1,3 +1,3 @@
 package com.cloudsimulator.entities.time
 
-case class TimeSliceUsage()
+case class TimeSliceUsage(sliceId:Long,sliceLengthUsedInSeconds:Double)

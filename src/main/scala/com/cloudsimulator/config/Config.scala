@@ -1,6 +1,7 @@
 package com.cloudsimulator.config
 
-import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
+import com.cloudsimulator.entities.payload.VMPayload
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 

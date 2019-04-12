@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.policies
 
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.host.RequestHostResourceStatus
-import com.cloudsimulator.entities.payload.CloudletPayload
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 
 class CloudletAssignmentPolicyActor(policy: CloudletAssignmentPolicy) extends Actor with ActorLogging {
 

@@ -6,10 +6,11 @@ import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.config.Config
 import com.cloudsimulator.entities.CISActor
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateVmAllocationPolicy, DataCenterActor}
 import com.cloudsimulator.entities.host.HostActor
 import com.cloudsimulator.entities.loadbalancer.{CloudletRequest, LoadBalancerActor, VMRequest}
-import com.cloudsimulator.entities.payload.{CloudletPayload, VMPayload}
+import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.policies._
 import com.cloudsimulator.entities.policies.vmallocation.{SimpleVmAllocationPolicy, StartAllocation}
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}

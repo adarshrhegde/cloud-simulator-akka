@@ -5,7 +5,8 @@ import com.cloudsimulator.cloudsimutils.RequestStatus
 import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.payload.{CloudletPayload, Payload, VMPayload}
+import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
+import com.cloudsimulator.entities.payload.{ Payload, VMPayload}
 import com.cloudsimulator.entities.policies.FindDataCenter
 import com.cloudsimulator.utils.ActorUtility
 
