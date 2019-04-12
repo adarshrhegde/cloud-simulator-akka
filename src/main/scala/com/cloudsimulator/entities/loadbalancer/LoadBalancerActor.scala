@@ -123,8 +123,9 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case failedVmCreation: FailedVmCreation => {
 
+      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
       // Re-Start the allocation process for the failed Vms
-      RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
+      cis ! RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
 
     }
 
