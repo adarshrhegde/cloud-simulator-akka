@@ -1,4 +1,5 @@
-package com.cloudsimulator.entities.policies
+package com.cloudsimulator.entities.policies.datacenterselection
+
 
 class SimpleDataCenterSelectionPolicy extends DataCenterSelectionPolicy {
   /**
@@ -7,11 +8,19 @@ class SimpleDataCenterSelectionPolicy extends DataCenterSelectionPolicy {
     * @param dcList - The list of datacenter actor ids
     * @return
     */
+
   override def selectDC(dcList: List[Long], excludeDcList: Seq[Long]): Option[Long] = {
 
-    Option(dcList
+
+    // Remove the DCs from the excluded list
+    val filteredDCs = dcList
       .filterNot(dc =>
-      excludeDcList.count(exDc => dc == exDc) > 0
-    )(0))
+        excludeDcList.count(exDc => dc == exDc) > 0
+      )
+
+    if(filteredDCs.size > 0)
+      Option(filteredDCs(0))
+    else
+      None
   }
 }

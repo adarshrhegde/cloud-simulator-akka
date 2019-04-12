@@ -24,7 +24,7 @@ class CISActor(id: Long) extends Actor with ActorLogging {
     }
 
     case RequestDataCenterList(id, vmPayloads: List[Payload]) => {
-      log.info(s"LoadBalancer::CISActor:RequestDataCenterList($id)")
+      log.info(s"LoadBalancer::CISActor:RequestDataCenterList:$id")
       sender() ! ReceiveDataCenterList(id, vmPayloads, dcList.toList)
     }
 

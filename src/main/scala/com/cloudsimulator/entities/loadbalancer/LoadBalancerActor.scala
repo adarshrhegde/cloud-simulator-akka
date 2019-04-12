@@ -7,7 +7,7 @@ import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCre
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.payload.{ Payload, VMPayload}
-import com.cloudsimulator.entities.policies.FindDataCenter
+import com.cloudsimulator.entities.policies.datacenterselection.FindDataCenter
 import com.cloudsimulator.utils.ActorUtility
 
 /**
@@ -45,7 +45,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
     case VMRequest(id, vmPayloads: List[VMPayload]) => {
 
       log.info(s"User::LoadBalancerActor:VMRequest:$id")
-      requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
+      requestIdMap = requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
 
@@ -64,7 +64,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       val selectionPolicy: ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
       // Request DataCenter selection policy to select DataCenter from provided list
-      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap.getOrElse(id, Seq()))
+      selectionPolicy ! FindDataCenter(id, payloads, dcList, requestIdToCheckedDcMap.getOrElse(id, Seq[Long]()))
     }
 
     /**
@@ -75,31 +75,53 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
       log.info(s"DataCenterSelectionPolicyActor::LoadBalancerActor:ReceiveDataCenterForVm:$id")
 
-      val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+      dc match {
 
-      val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dc.get}"))
+        case None => log.info(s"No DataCenter can be selected for request ID $id")
 
-      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
-        dcActor.pathString)
+        case Some(dcId) => {
 
-      if (isVmPayload(payloads)) {
-        // Request DataCenter to create VMs in its hosts
-        // Send message to root switch to forward to DataCenter
-        rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
-        //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
+          val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+
+          val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dcId}"))
+
+          val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+            dcActor.pathString)
+
+          if (isVmPayload(payloads)) {
+            // Request DataCenter to create VMs in its hosts
+            // Send message to root switch to forward to DataCenter
+            rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
+            //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
+          }
+          else {
+            val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
+            val vmList:List[Long]=cloudletPayload.map(_.vmId)
+            //send the cloudlet data to the dc and it takes the necessary steps
+            //TODO change dcActor to rootSwitchActor
+            //TODO vmList can be removed
+            dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
+          }
+
+        }
       }
-      else {
-        val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
-        val vmList:List[Long]=cloudletPayload.map(_.vmId)
-        //send the cloudlet data to the dc and it takes the necessary steps
-        //TODO change dcActor to rootSwitchActor
-        //TODO vmList can be removed
-        dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
-      }
+
+
+
     }
 
+    /**
+      * FailedVmCreation : DataCenter actor returns the list of Vms that
+      * could not be created. Loadbalancer will attempt to allocate the VM on
+      * another DataCenter
+      */
     case failedVmCreation: FailedVmCreation => {
-      // TODO Send failed vms to another DataCenter
+
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.dcId -> (requestIdToCheckedDcMap(failedVmCreation.dcId) ++ Seq(failedVmCreation.dcId)))
+
+      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+      // Re-Start the allocation process for the failed Vms
+      cis ! RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
 
     }
 
@@ -109,13 +131,16 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       * For the current reqId the prevDcId is recorded and the DCSelectionPolicy selects
       * only from the remaining DC.
       */
-    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayload, prevDcId) => {
+    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayloads, prevDcId) => {
+
       requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
 
-      if(cloudletPayload.nonEmpty){
-        self ! CloudletRequest(reqId,cloudletPayload)
-      }
+      if(cloudletPayloads.nonEmpty){
+        // Re-Start the allocation process for the failed cloudlets
+        val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+        cis ! RequestDataCenterList(reqId, cloudletPayloads)
 
+      }
     }
 
   }
@@ -132,7 +157,7 @@ case class VMRequest(requestId: Long, vmPayloads: List[VMPayload]) extends Netwo
 
 case class ReceiveDataCenterList(requestId: Long, payloads: List[Payload], dcList: List[Long]) extends NetworkPacket
 
-case class FailedVmCreation(requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
+case class FailedVmCreation(dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
 

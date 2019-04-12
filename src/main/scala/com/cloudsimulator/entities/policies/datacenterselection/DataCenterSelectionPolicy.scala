@@ -1,5 +1,4 @@
-package com.cloudsimulator.entities.policies
-
+package com.cloudsimulator.entities.policies.datacenterselection
 
 trait DataCenterSelectionPolicy {
 

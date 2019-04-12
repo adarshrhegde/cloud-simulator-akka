@@ -34,7 +34,6 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       log.info("HostActor::VmSchedulerActor:ScheduleVMs")
 
       vmActorPaths = vmActorPaths ++ scheduleVms.vmList
-      log.info(s"VMActorPaths ${vmActorPaths.foreach(_ => toString)}")
 
       slice = scheduleVms.slice
       hostResource = scheduleVms.hostResource
@@ -70,7 +69,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       */
     case vmRequirement: VmRequirement => {
 
-      log.info("VmActor::VmSchedulerActor:VmRequirement")
+      log.info(s"VmActor::VmSchedulerActor:VmRequirement:${vmRequirement.vmId}")
 
       vmRequirementList.count(vm => vm.vmId == vmRequirement.vmId) match {
 

@@ -9,11 +9,13 @@ import scala.collection.mutable.ListBuffer
   * This is a simple implementation if the VM Allocation Policy
   */
 class SimpleVmAllocationPolicy extends VmAllocationPolicy {
+
   override def allocateVMs(vmPayloads: List[VMPayload],
                            hostResources: Map[String, HostResource]): VmAllocationResult = {
 
     var vmHostMap : Map[VMPayload, String] = Map()
     var allocationFailedVms : ListBuffer[VMPayload] = ListBuffer()
+
 
     // Obtain Vm to Host Mapping
     vmPayloads.foreach(vmPayload => {
