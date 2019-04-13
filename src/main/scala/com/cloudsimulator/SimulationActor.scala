@@ -170,8 +170,8 @@ class ActorCount {
   var actorCount : Int = 0
   var actorCreatedCount : Int = 0
 
-  var vmCount : Int = 0
-  var vmCreatedCount : Int = 0
+  var vmActorCount : Int = 0
+  var vmActorCreatedCount : Int = 0
 }
 
 

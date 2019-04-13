@@ -56,7 +56,8 @@ class DataCenterActor(id: Long,
   override def preStart(): Unit = {
 
     // Register self with CIS actor on startup
-    context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
+    //context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
+    self ! RegisterWithCIS
 
   }
 
