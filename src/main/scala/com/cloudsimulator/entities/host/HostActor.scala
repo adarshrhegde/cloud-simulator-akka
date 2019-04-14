@@ -156,9 +156,12 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     }
 
     case requestHostResourceStatus: RequestHostResourceStatus => {
-      log.info("VmAllocationPolicyActor::HostActor:RequestHostResourceStatus")
+      log.info("EdgeSwitchActor::HostActor:RequestHostResourceStatus")
 
-      sender() ! ReceiveHostResourceStatus(requestHostResourceStatus.requestId,
+      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+        requestHostResourceStatus.networkPacketProperties.sender)
+
+      sender() ! ReceiveHostResourceStatus(networkPacketProperties, requestHostResourceStatus.requestId,
         new HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
@@ -185,7 +188,7 @@ case class CanAllocateVm(vmPayloadTracker : VMPayloadTracker)
 
 case class AllocateVm(override val networkPacketProperties: NetworkPacketProperties, vmPayload : VMPayload) extends NetworkPacket
 
-case class RequestHostResourceStatus(requestId : Long)  extends NetworkPacket
+case class RequestHostResourceStatus(override val networkPacketProperties: NetworkPacketProperties, requestId : Long)  extends NetworkPacket
 
 case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
                         var availableStorage : Long, var availableBw : Double)  extends NetworkPacket

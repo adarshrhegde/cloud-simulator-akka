@@ -11,7 +11,7 @@ import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperti
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.policies.vmallocation._
-import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
+import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, NetworkDevice, RootSwitchActor}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param vmToHostMap
   */
 class DataCenterActor(id: Long,
-                      location: String, rootSwitchId: String, cloudletAllocationPolicyId : String)
+                      location: String, rootSwitchId: String, var downStreamConnections : Seq[String])
   extends Actor with ActorLogging {
 
   import context._
@@ -100,7 +100,7 @@ class DataCenterActor(id: Long,
       val vmAllocationPolicyActor = context.child(ActorUtility.vmAllocationPolicy).get
 
       // ask Vm Allocation Policy actor to identify vm-host mapping
-      vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList)
+      vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList, downStreamConnections)
 
       // old logic to send each payload to each host
       // to be deleted shortly
@@ -165,11 +165,23 @@ class DataCenterActor(id: Long,
       downlinkSwitches += (createSwitch.switchType + "-" + createSwitch.switchId)
 
       createSwitch.switchType match {
-        case "edge" => context.actorOf(Props(new EdgeSwitchActor),
-          createSwitch.switchType + "-" + createSwitch.switchId)
+        case "edge" => {
 
-        case "aggregate" => context.actorOf(Props(new AggregateSwitchActor),
-          createSwitch.switchType + "-" + createSwitch.switchId)
+          val switchActor = context.actorOf(Props(new EdgeSwitchActor(
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.switchType + "-" + createSwitch.switchId)
+
+          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+        }
+
+        case "aggregate" => {
+
+          val switchActor = context.actorOf(Props(new AggregateSwitchActor(
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.switchType + "-" + createSwitch.switchId)
+
+          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+        }
       }
     }
 
@@ -286,7 +298,7 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
 
-case class CreateSwitch(switchType : String, switchId : Long)
+case class CreateSwitch(switchType : String, switchId : Long, upstreamConnections : List[String], downstreamConnections: List[String])
 
 case class CheckDCForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload],vmList:List[Long])
 

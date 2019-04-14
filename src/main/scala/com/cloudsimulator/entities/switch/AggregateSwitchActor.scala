@@ -3,7 +3,7 @@ package com.cloudsimulator.entities.switch
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.network.NetworkPacket
 
-class AggregateSwitchActor extends Actor with ActorLogging with Switch {
+class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String]) extends Actor with ActorLogging with Switch {
   override def receive: Receive = {
     case _ => ""
   }

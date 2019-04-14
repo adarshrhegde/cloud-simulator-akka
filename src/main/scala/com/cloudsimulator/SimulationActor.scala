@@ -31,6 +31,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
   val actorCount : ActorCount = new ActorCount
 
+  var deviceToSwitchMapping : Map[String, String] = Map()
+
 
   override def preStart(): Unit = {
     log.info(s"Starting the cloud simulation")
@@ -50,11 +52,29 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         * Create root switch, CIS, DataCenters, hosts and policy actors
         */
 
-      val rootSwitchName : String = config.rootSwitch.switchType + "-" + config.rootSwitch.id.toString
+      val rootSwitchNames : List[String] = config.rootSwitchList.map(rootSwitchConfig => {
+
+        val rootSwitchName : String = rootSwitchConfig.switchType + "-" + rootSwitchConfig.id.toString
+
+        val dcConnections : List[String] = rootSwitchConfig.downstreamConnections
+          .filter(connection => {
+            connection.connectionType.equals("DataCenter")
+          })
+          .map(connection => {
+
+          deviceToSwitchMapping = deviceToSwitchMapping + (connection.id -> rootSwitchName)
+          connection.id
+        })
+
+        context.actorOf(Props(new RootSwitchActor(dcConnections)), rootSwitchName)
+
+        rootSwitchName
+      })
+
 
       val cisActor = context.actorOf(Props(new CISActor(config.cis.id)), "CIS")
 
-      context.actorOf(Props(new LoadBalancerActor(rootSwitchName)), "loadBalancer")
+      context.actorOf(Props(new LoadBalancerActor(rootSwitchNames)), "loadBalancer")
 
       var dcList: ListBuffer[String] = ListBuffer()
 
@@ -65,7 +85,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       // Create DC actors and their respective Vm Allocation policy, Switch children
       config.dataCenterList.foreach(dc => {
 
-        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, rootSwitchName, "")), "dc-" + dc.id)
+
+        val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, deviceToSwitchMapping(s"dc-${dc.id}"), Seq())), "dc-" + dc.id)
         dcList += dcActor.path.toStringWithoutAddress
 
         val vmAllocationPolicy = new SimpleVmAllocationPolicy()
@@ -73,13 +94,13 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         dcActor ! CreateVmAllocationPolicy(vmAllocationPolicy)
 
         dc.switchList.foreach(switch => {
-            dcActor ! CreateSwitch(switch.switchType, switch.id)
+            dcActor ! CreateSwitch(switch.switchType, switch.id,
+              switch.upstreamConnections.map(c => c.id), switch.downstreamConnections.map(c => c.id))
           })
 
       })
 
       log.info("DC List:: " + dcList.toList)
-      context.actorOf(Props(new RootSwitchActor(dcList.toList)), rootSwitchName)
 
       config.hostList.foreach(host => {
 
