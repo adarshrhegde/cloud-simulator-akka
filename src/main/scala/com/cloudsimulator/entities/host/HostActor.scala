@@ -48,7 +48,8 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     // Register self with Edge switch
     self ! CreateVmScheduler
 
-    self ! RegisterWithSwitch
+    // TODO remove host registering logic with edge switch
+    //self ! RegisterWithSwitch
   }
 
   override def receive: Receive = {

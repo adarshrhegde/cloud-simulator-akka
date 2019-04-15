@@ -2,7 +2,8 @@ package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.datacenter.RequestCreateVms
-import com.cloudsimulator.entities.{DcRegistration}
+import com.cloudsimulator.entities.DcRegistration
+import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.network.NetworkPacket
 
@@ -17,12 +18,18 @@ class RootSwitchActor(downStreamEntities: List[String]) extends Actor with Actor
 
     case (dcRegistration: DcRegistration) => {
       log.info(s"DataCenterActor::RootSwitchActor:DcRegistration:${dcRegistration.id}")
-      processPacketUp("CIS", dcRegistration)
+      processPacketUp(ActorUtility.getActorRef("CIS"), dcRegistration)
     }
 
     case (requestCreateVms : RequestCreateVms) => {
       log.info(s"LoadBalancerActor::RootSwitchActor:RequestCreateVms:${requestCreateVms.requestId}")
       processPacketDown(requestCreateVms.networkPacketProperties.receiver, requestCreateVms)
+    }
+
+    case failedVmCreation: FailedVmCreation => {
+      log.info(s"DataCenterActor::RootSwitchActor:FailedVmCreation:${failedVmCreation.requestId}" +
+        s"::DataCenter:${failedVmCreation.dcId}")
+      processPacketUp(failedVmCreation.networkPacketProperties.receiver, failedVmCreation)
     }
 
   }
@@ -41,10 +48,8 @@ class RootSwitchActor(downStreamEntities: List[String]) extends Actor with Actor
 
   override def processPacketUp(destination : String, networkPacket: NetworkPacket): Unit = {
 
-    destination match {
-
-      case "CIS" => context.actorSelection(ActorUtility.getActorRef("CIS")) ! networkPacket
-    }
+    log.info("Forwarding the message upstream")
+    context.actorSelection(destination) ! networkPacket
 
   }
 

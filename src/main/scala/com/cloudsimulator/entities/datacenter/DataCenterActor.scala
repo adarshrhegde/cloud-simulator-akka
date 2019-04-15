@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.datacenter
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorSelection, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
@@ -35,7 +35,6 @@ class DataCenterActor(id: Long,
 
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
-  private var downlinkSwitches : ListBuffer[String] = ListBuffer()
 
   private val hostList: ListBuffer[String] = ListBuffer()
 
@@ -95,7 +94,7 @@ class DataCenterActor(id: Long,
       log.info(s"Request to allocate Vms sent from ${networkPacketProperties.sender}")
 
       // update request-LB mapping to keep track of LB that sent the request
-      requestToLBMap += (id -> sender().path.toStringWithoutAddress)
+      requestToLBMap += (id -> networkPacketProperties.sender)
 
       val vmAllocationPolicyActor = context.child(ActorUtility.vmAllocationPolicy).get
 
@@ -137,7 +136,7 @@ class DataCenterActor(id: Long,
         var networkPacketProperties = new NetworkPacketProperties(
           self.path.toStringWithoutAddress, vmHost._2)
 
-        downlinkSwitches.foreach(switch => {
+        downStreamConnections.foreach(switch => {
           context.actorSelection(switch) ! AllocateVm(networkPacketProperties, vmHost._1)
         })
 
@@ -149,11 +148,12 @@ class DataCenterActor(id: Long,
       // handle failed vms
       if(receiveVmAllocation.vmAllocationResult.failedAllocationVms.size > 0){
 
-        val loadBalancerActor = context.actorSelection(
-          requestToLBMap.get(receiveVmAllocation.requestId).get)
+        val networkPacketProperties = new NetworkPacketProperties(
+          self.path.toStringWithoutAddress, requestToLBMap.get(receiveVmAllocation.requestId).get)
 
         // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
-        loadBalancerActor ! FailedVmCreation(id, receiveVmAllocation.requestId,
+        context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
+          FailedVmCreation(networkPacketProperties, id, receiveVmAllocation.requestId,
           receiveVmAllocation.vmAllocationResult.failedAllocationVms)
 
       }
@@ -162,7 +162,6 @@ class DataCenterActor(id: Long,
 
     case createSwitch : CreateSwitch => {
 
-      downlinkSwitches += (createSwitch.switchType + "-" + createSwitch.switchId)
 
       createSwitch.switchType match {
         case "edge" => {

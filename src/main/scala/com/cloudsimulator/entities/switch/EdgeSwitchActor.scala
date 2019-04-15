@@ -15,35 +15,33 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
 
   override def receive: Receive = {
 
+    // TODO Remove logic for hosts to register with edge switch
     case RegisterHost(hostPath) => {
       log.info(s"HostActor::EdgeSwitchActor:RegisterHost-$hostPath")
       downlinkHostList += hostPath
     }
+
+
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::EdgeSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")
 
       // forward to host if the host is connected to this switch
-      if(downlinkHostList.contains(allocateVm.networkPacketProperties.receiver)){
-        context.actorSelection(allocateVm.networkPacketProperties.receiver) ! allocateVm
-      }
+        processPacketDown(allocateVm.networkPacketProperties.receiver, allocateVm)
     }
 
     case requestHostResourceStatus: RequestHostResourceStatus => {
 
-      log.info(s"${sender().path.name}::EdgeSwitchActor:RequestHostResourceStatus")
-
-      if(downstreamEntities.contains(requestHostResourceStatus.networkPacketProperties
-        .receiver.split("/").lastOption.get)){
+      log.info(s"VMAllocationPolicyActor::EdgeSwitchActor:RequestHostResourceStatus")
 
         processPacketDown(requestHostResourceStatus.networkPacketProperties
           .receiver,requestHostResourceStatus)
 
-      }
     }
 
     case receiveHostResourceStatus: ReceiveHostResourceStatus => {
 
-      log.info(s"${sender().path.name}::EdgeSwitchActor:ReceiveHostResourceStatus")
+      log.info(s"${sender().path.name}::EdgeSwitchActor:ReceiveHostResourceStatus" +
+        s":${receiveHostResourceStatus.requestId}")
 
       processPacketUp(receiveHostResourceStatus.networkPacketProperties
         .receiver, receiveHostResourceStatus)
@@ -61,7 +59,12 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
     // TODO Add delay
-    context.actorSelection(destination) ! cloudSimulatorMessage
+
+    // check if actor name is registered with downstreamConnections
+    if(downstreamEntities.contains(destination.split("/").lastOption.get)){
+      context.actorSelection(destination) ! cloudSimulatorMessage
+    }
+
   }
 
   override def processPacketUp(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {

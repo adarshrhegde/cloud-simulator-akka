@@ -118,7 +118,10 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
       */
     case failedVmCreation: FailedVmCreation => {
 
-      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.dcId -> (requestIdToCheckedDcMap(failedVmCreation.dcId) ++ Seq(failedVmCreation.dcId)))
+      log.info(s"RootSwitchActor::LoadBalancerActor:FailedVmCreation:${failedVmCreation.requestId}")
+
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.requestId ->
+        (requestIdToCheckedDcMap.getOrElse(failedVmCreation.requestId, Seq()) ++ Seq(failedVmCreation.dcId)))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
       // Re-Start the allocation process for the failed Vms
@@ -159,7 +162,7 @@ case class VMRequest(requestId: Long, vmPayloads: List[VMPayload]) extends Netwo
 
 case class ReceiveDataCenterList(requestId: Long, payloads: List[Payload], dcList: List[Long]) extends NetworkPacket
 
-case class FailedVmCreation(dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
+case class FailedVmCreation(override val networkPacketProperties : NetworkPacketProperties, dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
 
