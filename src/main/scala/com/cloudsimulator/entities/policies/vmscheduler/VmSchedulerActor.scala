@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.policies.vmscheduler
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.cloudsimulator.entities.host.HostResource
-import com.cloudsimulator.entities.network.NetworkPacket
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.SendVmRequirement
 
@@ -59,7 +59,10 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
         // Assign the time slice info to each vm
         assignment.foreach(sliceAssigment => {
 
-          sliceAssigment.vmRef ! SendTimeSliceInfo(new TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime))
+          val networkPacketProperties = new NetworkPacketProperties(
+            self.path.toStringWithoutAddress, sliceAssigment.vmRef.path.toStringWithoutAddress)
+
+          sliceAssigment.vmRef ! SendTimeSliceInfo(networkPacketProperties, new TimeSliceInfo(slice.sliceId, sliceAssigment.sliceLength , slice.sliceStartSysTime))
         })
       }
     }

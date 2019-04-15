@@ -5,6 +5,7 @@ import com.cloudsimulator.entities.datacenter.VmAllocationSuccess
 import com.cloudsimulator.entities.host.{AllocateVm, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
+import com.cloudsimulator.entities.time.SendTimeSliceInfo
 
 import scala.collection.mutable.ListBuffer
 
@@ -52,6 +53,13 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
       log.info(s"HostActor::EdgeSwitchActor:VmAllocationSuccess")
 
       processPacketUp(vmAllocationSuccess.networkPacketProperties.receiver, vmAllocationSuccess)
+    }
+
+    case sendTimeSliceInfo: SendTimeSliceInfo => {
+      log.info(s"DataCenterActor::EdgeSwitchActor:SendTimeSliceInfo")
+
+      processPacketDown(sendTimeSliceInfo.networkPacketProperties.receiver, sendTimeSliceInfo)
+
     }
 
   }

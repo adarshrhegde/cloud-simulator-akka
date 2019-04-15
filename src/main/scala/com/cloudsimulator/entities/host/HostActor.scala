@@ -143,15 +143,15 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     }
 
     /**
-      *
+      * Sender : DataCenter
       */
-    case SendTimeSliceInfo(sliceInfo: TimeSliceInfo) => {
+    case sendTimeSliceInfo : SendTimeSliceInfo => {
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
 
       //TODO should be added at the vmScheduler level
-      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
+      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> vmIdToRefMap.size)
 
-      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
+      context.child("vm-scheduler").get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
     }

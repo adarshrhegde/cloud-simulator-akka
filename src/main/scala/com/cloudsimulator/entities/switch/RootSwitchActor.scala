@@ -1,20 +1,30 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.RequestCreateVms
-import com.cloudsimulator.entities.DcRegistration
+import com.cloudsimulator.entities.datacenter.{RegisterWithCIS, RequestCreateVms}
+import com.cloudsimulator.entities.{DcRegistration, RootSwitchRegistration}
 import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.network.NetworkPacket
+import com.cloudsimulator.entities.time.SendTimeSliceInfo
 
 /**
   * A Root Switch is connected to the external network on the upstream
   * It is connected to DataCenters on the downstream
   * @param downStreamEntities
   */
-class RootSwitchActor(downStreamEntities: List[String]) extends Actor with ActorLogging with Switch {
+class RootSwitchActor(id : Long, downStreamEntities: List[String]) extends Actor with ActorLogging with Switch {
+
+  override def preStart(): Unit = {
+    self ! RegisterWithCIS
+  }
 
   override def receive: Receive = {
+
+    case RegisterWithCIS => {
+      log.info("RootSwitchActor::RootSwitchActor:RegisterWithCIS")
+      processPacketUp(ActorUtility.getActorRef("CIS"), RootSwitchRegistration(id))
+    }
 
     case (dcRegistration: DcRegistration) => {
       log.info(s"DataCenterActor::RootSwitchActor:DcRegistration:${dcRegistration.id}")
@@ -30,6 +40,11 @@ class RootSwitchActor(downStreamEntities: List[String]) extends Actor with Actor
       log.info(s"DataCenterActor::RootSwitchActor:FailedVmCreation:${failedVmCreation.requestId}" +
         s"::DataCenter:${failedVmCreation.dcId}")
       processPacketUp(failedVmCreation.networkPacketProperties.receiver, failedVmCreation)
+    }
+
+    case sendTimeSliceInfo: SendTimeSliceInfo => {
+      log.info(s"TimeActor::RootSwitchActor:SendTimeSliceInfo::SliceId:${sendTimeSliceInfo.sliceInfo.sliceId}")
+      processPacketDown(sendTimeSliceInfo.networkPacketProperties.receiver, sendTimeSliceInfo)
     }
 
   }

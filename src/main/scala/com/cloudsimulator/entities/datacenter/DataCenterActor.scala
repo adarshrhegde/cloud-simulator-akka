@@ -252,14 +252,28 @@ class DataCenterActor(id: Long,
       * Sender: TimeActor
       * TimeSliceInfo to be sent down the hierarchy till the VMSchedulerPolicy
       */
-    case SendTimeSliceInfo(sliceInfo:TimeSliceInfo) =>{
+    case sendTimeSliceInfo: SendTimeSliceInfo => {
 
-      log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
-      mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
+      if(mapSliceIdToHostCountRem.contains(sendTimeSliceInfo.sliceInfo.sliceId)){
+        log.info(s"Time Slice ${sendTimeSliceInfo.sliceInfo.sliceId} already received by DC")
+      }
 
-      hostList.foreach(host=>{
-        context.actorSelection(host) ! SendTimeSliceInfo(sliceInfo)
-      })
+      else {
+        log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
+        mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> hostList.size)
+
+        downStreamConnections.foreach(switch => {
+
+          hostList.foreach(host => {
+
+            val networkPacketProperties = new NetworkPacketProperties(
+              self.path.toStringWithoutAddress, host)
+
+            context.actorSelection(switch) ! SendTimeSliceInfo(networkPacketProperties, sendTimeSliceInfo.sliceInfo)
+
+          })
+        })
+      }
     }
 
     /**

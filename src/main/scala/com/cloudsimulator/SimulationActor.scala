@@ -66,7 +66,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
           connection.id
         })
 
-        context.actorOf(Props(new RootSwitchActor(dcConnections)), rootSwitchName)
+        context.actorOf(Props(new RootSwitchActor(rootSwitchConfig.id, dcConnections)), rootSwitchName)
 
         rootSwitchName
       })
