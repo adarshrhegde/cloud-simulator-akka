@@ -281,11 +281,20 @@ class DataCenterActor(id: Long,
       * After it receives from all hosts, it sends to the TimeActor to send the next time slice when available
       * Else it decrements the count of the remaining responses from the host.
       */
-    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
+    case timeSliceCompleted: TimeSliceCompleted =>{
       log.info("DataCenterActor::HostActor:TimeSliceCompleted")
-      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(sliceInfo.sliceId).map(_-1)
-      newCount.filter(_==0).foreach(_ => context.actorSelection(ActorUtility.getActorRef("TimeActor")) ! TimeSliceCompleted(sliceInfo))
-      newCount.filter(_!=0).foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem+(sliceInfo.sliceId -> (count-1)))
+      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
+
+      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+        ActorUtility.getActorRef("TimeActor"))
+
+      newCount.filter(_==0)
+        .foreach(_ => context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
+          TimeSliceCompleted(networkPacketProperties, timeSliceCompleted.timeSliceInfo))
+
+      newCount.filter(_!=0)
+        .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +
+          (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
     }
 
 

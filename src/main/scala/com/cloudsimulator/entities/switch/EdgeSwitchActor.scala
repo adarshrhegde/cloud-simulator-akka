@@ -5,7 +5,8 @@ import com.cloudsimulator.entities.datacenter.VmAllocationSuccess
 import com.cloudsimulator.entities.host.{AllocateVm, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
-import com.cloudsimulator.entities.time.SendTimeSliceInfo
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
+import com.cloudsimulator.utils.ActorUtility
 
 import scala.collection.mutable.ListBuffer
 
@@ -21,7 +22,6 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
       log.info(s"HostActor::EdgeSwitchActor:RegisterHost-$hostPath")
       downlinkHostList += hostPath
     }
-
 
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::EdgeSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")
@@ -62,6 +62,12 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
 
     }
 
+    case timeSliceCompleted: TimeSliceCompleted => {
+      log.info("HostActor::EdgeSwitchActor:TimeSliceCompleted")
+
+      processPacketUp(timeSliceCompleted.networkPacketProperties.receiver, timeSliceCompleted)
+    }
+
   }
 
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
@@ -78,7 +84,17 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
   override def processPacketUp(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
     // TODO Add delay
-    context.actorSelection(destination) ! cloudSimulatorMessage
+    if(upstreamEntities.contains(destination.split("/").lastOption.get)){
+      context.actorSelection(destination) ! cloudSimulatorMessage
+
+    } else {
+      // send message to all entities in upstream if destination not in upstream entities
+      upstreamEntities.foreach(upstreamEntity =>{
+        context.actorSelection(ActorUtility.getActorRef(upstreamEntity)) ! cloudSimulatorMessage
+
+      })
+    }
+
   }
 }
 

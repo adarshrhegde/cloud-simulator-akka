@@ -178,9 +178,13 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       * to provide next time slice when available.
       * Data center accumulates from all hosts and then informs the TimeActor.
       */
-    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
-      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
-      context.parent ! TimeSliceCompleted(sliceInfo)
+    case timeSliceInfo: TimeSliceInfo =>{
+      log.info("VmSchedulerActor::HostActor:TimeSliceCompleted")
+
+      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+        context.parent.path.toStringWithoutAddress)
+
+      context.actorSelection(ActorUtility.getEdgeSwitchRefString()) ! TimeSliceCompleted(networkPacketProperties, timeSliceInfo)
     }
   }
 }

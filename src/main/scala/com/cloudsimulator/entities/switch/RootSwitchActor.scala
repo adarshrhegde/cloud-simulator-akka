@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.{DcRegistration, RootSwitchRegistration}
 import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.utils.ActorUtility
 import com.cloudsimulator.entities.network.NetworkPacket
-import com.cloudsimulator.entities.time.SendTimeSliceInfo
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 
 /**
   * A Root Switch is connected to the external network on the upstream
@@ -47,6 +47,11 @@ class RootSwitchActor(id : Long, downStreamEntities: List[String]) extends Actor
       processPacketDown(sendTimeSliceInfo.networkPacketProperties.receiver, sendTimeSliceInfo)
     }
 
+    case timeSliceCompleted: TimeSliceCompleted => {
+      log.info(s"DataCenterActor::RootSwitchActor:TimeSliceCompleted::SliceId:${timeSliceCompleted.timeSliceInfo.sliceId}")
+
+      processPacketUp(timeSliceCompleted.networkPacketProperties.receiver, timeSliceCompleted)
+    }
   }
 
   override def processPacketDown(destination : String, networkPacket: NetworkPacket): Unit = {

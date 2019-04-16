@@ -15,6 +15,7 @@ object ActorUtility {
   val vmAllocationPolicy = "vm-allocation-policy"
   val vmScheduler = "vm-scheduler"
   val cloudletScheduler = "cloudlet-scheduler"
+  val edgeSwitch = "edge-"
 
 
   def getActorRef(actorPath: String): String = {
@@ -27,6 +28,10 @@ object ActorUtility {
 
   def getRootSwitchRefString() : String = {
     s"akka://$actorSystemName/user/$simulationActor/$rootSwitch"
+  }
+
+  def getEdgeSwitchRefString() : String = {
+    s"akka://$actorSystemName/user/$simulationActor/$edgeSwitch"
   }
 
   def getHostRefString(dcId: String): String = {
