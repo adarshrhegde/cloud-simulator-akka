@@ -133,7 +133,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayloads, prevDcId) => {
 
-      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap(reqId) ++ Seq(prevDcId)))
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap.getOrElse(reqId, Seq()) ++ Seq(prevDcId)))
 
       if(cloudletPayloads.nonEmpty){
         // Re-Start the allocation process for the failed cloudlets

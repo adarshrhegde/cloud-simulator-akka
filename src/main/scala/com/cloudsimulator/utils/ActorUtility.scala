@@ -14,6 +14,7 @@ object ActorUtility {
   val vmAllocationPolicy = "vm-allocation-policy"
   val vmScheduler = "vm-scheduler"
   val cloudletScheduler = "cloudlet-scheduler"
+  val cloudletPrintActor ="cloudlet-print-actor"
 
 
   def getActorRef(actorPath: String): String = {
