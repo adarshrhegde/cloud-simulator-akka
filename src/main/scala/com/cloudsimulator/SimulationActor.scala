@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.config.Config
-import com.cloudsimulator.entities.CISActor
+import com.cloudsimulator.entities.{CISActor, CloudletPrintActor}
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.datacenter.{CreateHost, CreateSwitch, CreateVmAllocationPolicy, DataCenterActor}
 import com.cloudsimulator.entities.host.HostActor
@@ -152,8 +152,12 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         lb ! CloudletRequest(2, sendCloudletPayload.cloudletPayloadList)
       })
 
+      context.actorOf(Props(new CloudletPrintActor),ActorUtility.cloudletPrintActor)
+
       context.system.scheduler.scheduleOnce(
         new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+
+
     }
 
     case StartTimeActor => {

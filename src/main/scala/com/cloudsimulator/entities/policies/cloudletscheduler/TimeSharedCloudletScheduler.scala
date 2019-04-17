@@ -3,13 +3,13 @@ package com.cloudsimulator.entities.policies.cloudletscheduler
 import java.util.Calendar
 
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
-import com.cloudsimulator.entities.payload.cloudlet.{CloudletExecution, CloudletPayload}
-import com.cloudsimulator.entities.policies.vmscheduler.VmRequirement
+import com.cloudsimulator.entities.payload.cloudlet.CloudletExecution
 import com.cloudsimulator.entities.time.{TimeSliceInfo, TimeSliceUsage}
 
-class TimeSharedCloudletScheduler extends CloudletScheduler {
+case class TimeSharedCloudletScheduler() extends CloudletScheduler {
 
-  override def scheduleCloudlets(timeSliceInfo: TimeSliceInfo, vmResources: VmRequirement,
+  override def scheduleCloudlets(timeSliceInfo: TimeSliceInfo, mips: Long,
+                                 noOfPes: Int,
                                  cloudlets: Seq[CloudletExecution]): Seq[CloudletExecution] = {
 
     val timeSliceForEachCloudlet: Double = timeSliceInfo.slice.toDouble / cloudlets.size
@@ -21,27 +21,36 @@ class TimeSharedCloudletScheduler extends CloudletScheduler {
       val newTimeSliceUsageInfo = cloudlet.timeSliceUsageInfo :+
         TimeSliceUsage(timeSliceInfo.sliceId, timeSliceForEachCloudlet)
 
-      val newExecStartTime: Double = Option(cloudlet.execStartTime) match {
-        case None => Calendar.getInstance().getTimeInMillis
+      val newExecStartTime: Long = Option(cloudlet.execStartTime) match {
+        case Some(-1.0) => Calendar.getInstance().getTimeInMillis
+        case Some(value) => value
       }
 
-      val newExecEndTime: Double = Option(cloudlet.execEndTime) match {
-        case None => {
-          if (cloudlet.remWorkloadLength == 0) {
+      //remaining workload length
+      //      val tempMipProcessed: Double = vmResources.mips * vmResources.noOfPes * timeSliceForEachCloudlet
+      //      if(cloudlet.remWorkloadLength<tempMipProcessed)
+      //TODO exact usage of the time slice shouldn't go into negative
+      val newRemWorkloadLength = cloudlet.remWorkloadLength -
+        mips * noOfPes * timeSliceForEachCloudlet
+
+
+      val newExecEndTime: Long = Option(cloudlet.execEndTime) match {
+        case Some(-1.0) => {
+          if (newRemWorkloadLength <= 0) {
             Calendar.getInstance().getTimeInMillis
           }
           -1
         }
+        case Some(value) => value
       }
 
-      //TODO remaining workload length left
 
-      CloudletExecution(cloudlet.cloudletPayload,
+      CloudletExecution(cloudlet.id,cloudlet.cloudletPayload,
         newTimeSliceUsageInfo,
-        cloudlet.dcId, cloudlet.delay,
-        cloudlet.hostId, newExecStartTime, newExecEndTime,
+        cloudlet.delay, cloudlet.dcId,
+        cloudlet.hostId, cloudlet.vmId, newExecStartTime, newExecEndTime,
         CloudletPayloadStatus.RUNNING,
-        cloudlet.remWorkloadLength)
+        newRemWorkloadLength, 0)
     })
   }
 }

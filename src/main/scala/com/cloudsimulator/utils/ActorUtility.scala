@@ -16,6 +16,7 @@ object ActorUtility {
   val vmScheduler = "vm-scheduler"
   val cloudletScheduler = "cloudlet-scheduler"
   val edgeSwitch = "edge-"
+  val cloudletPrintActor ="cloudlet-print-actor"
 
 
   def getActorRef(actorPath: String): String = {

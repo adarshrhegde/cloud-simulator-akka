@@ -2,15 +2,18 @@ package com.cloudsimulator.entities.payload.cloudlet
 
 import com.cloudsimulator.entities.time.TimeSliceUsage
 
-case class CloudletExecution(cloudletPayload: CloudletPayload,
+case class CloudletExecution(id: Long,
+                             cloudletPayload: CloudletPayload,
                              timeSliceUsageInfo: Seq[TimeSliceUsage],
                              delay: Long,
                              dcId: Long,
                              hostId: Long,
-                             execStartTime: Double,
-                             execEndTime: Double,
+                             vmId: Long,
+                             execStartTime: Long,
+                             execEndTime: Long,
                              status: Int,
-                             remWorkloadLength: Long
+                             remWorkloadLength: Double,
+                             cost: Double
                             )
 
 // TODO cost for RAM, storage, MIPS

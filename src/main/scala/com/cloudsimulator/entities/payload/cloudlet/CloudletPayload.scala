@@ -13,7 +13,8 @@ case class CloudletPayload(payloadId: Long, userId: Long, /*cloudletId: Long,*/
                            ram: Int,
                            storage: Int,
                            workloadLength: Long,
-                           var status: Long
+                           var status: Long,
+                           var cost: Double
                            /*,var timeSliceUsageInfo: List[TimeSliceUsage]*/) extends Payload
 
 
