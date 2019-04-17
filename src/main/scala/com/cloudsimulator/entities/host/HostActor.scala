@@ -181,10 +181,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     case timeSliceInfo: TimeSliceInfo =>{
       log.info("VmSchedulerActor::HostActor:TimeSliceCompleted")
 
-      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
-        context.parent.path.toStringWithoutAddress)
-
-      context.actorSelection(ActorUtility.getEdgeSwitchRefString()) ! TimeSliceCompleted(networkPacketProperties, timeSliceInfo)
+      context.parent ! TimeSliceCompleted(timeSliceInfo)
     }
   }
 }

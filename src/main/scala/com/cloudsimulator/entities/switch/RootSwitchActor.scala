@@ -42,16 +42,6 @@ class RootSwitchActor(id : Long, downStreamEntities: List[String]) extends Actor
       processPacketUp(failedVmCreation.networkPacketProperties.receiver, failedVmCreation)
     }
 
-    case sendTimeSliceInfo: SendTimeSliceInfo => {
-      log.info(s"TimeActor::RootSwitchActor:SendTimeSliceInfo::SliceId:${sendTimeSliceInfo.sliceInfo.sliceId}")
-      processPacketDown(sendTimeSliceInfo.networkPacketProperties.receiver, sendTimeSliceInfo)
-    }
-
-    case timeSliceCompleted: TimeSliceCompleted => {
-      log.info(s"DataCenterActor::RootSwitchActor:TimeSliceCompleted::SliceId:${timeSliceCompleted.timeSliceInfo.sliceId}")
-
-      processPacketUp(timeSliceCompleted.networkPacketProperties.receiver, timeSliceCompleted)
-    }
   }
 
   override def processPacketDown(destination : String, networkPacket: NetworkPacket): Unit = {

@@ -55,19 +55,6 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
       processPacketUp(vmAllocationSuccess.networkPacketProperties.receiver, vmAllocationSuccess)
     }
 
-    case sendTimeSliceInfo: SendTimeSliceInfo => {
-      log.info(s"DataCenterActor::EdgeSwitchActor:SendTimeSliceInfo")
-
-      processPacketDown(sendTimeSliceInfo.networkPacketProperties.receiver, sendTimeSliceInfo)
-
-    }
-
-    case timeSliceCompleted: TimeSliceCompleted => {
-      log.info("HostActor::EdgeSwitchActor:TimeSliceCompleted")
-
-      processPacketUp(timeSliceCompleted.networkPacketProperties.receiver, timeSliceCompleted)
-    }
-
   }
 
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {

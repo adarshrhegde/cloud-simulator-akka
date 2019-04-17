@@ -262,17 +262,11 @@ class DataCenterActor(id: Long,
         log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
         mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> hostList.size)
 
-        downStreamConnections.foreach(switch => {
-
           hostList.foreach(host => {
 
-            val networkPacketProperties = new NetworkPacketProperties(
-              self.path.toStringWithoutAddress, host)
-
-            context.actorSelection(switch) ! SendTimeSliceInfo(networkPacketProperties, sendTimeSliceInfo.sliceInfo)
+            context.actorSelection(host) ! SendTimeSliceInfo(sendTimeSliceInfo.sliceInfo)
 
           })
-        })
       }
     }
 
@@ -282,15 +276,12 @@ class DataCenterActor(id: Long,
       * Else it decrements the count of the remaining responses from the host.
       */
     case timeSliceCompleted: TimeSliceCompleted =>{
-      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
+      log.info("HostActor::DataCenterActor:TimeSliceCompleted")
       val newCount:Option[Long]=mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
 
-      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
-        ActorUtility.getActorRef("TimeActor"))
-
       newCount.filter(_==0)
-        .foreach(_ => context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
-          TimeSliceCompleted(networkPacketProperties, timeSliceCompleted.timeSliceInfo))
+        .foreach(_ => context.actorSelection(ActorUtility.getActorRef("time-actor")) !
+          TimeSliceCompleted(timeSliceCompleted.timeSliceInfo))
 
       newCount.filter(_!=0)
         .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +

@@ -14,25 +14,23 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
   val mapIdToDcCountRem: Map[Long, Long] = Map()
   var startExecTimeForTimeSlice: Long = Calendar.getInstance().getTimeInMillis
 
-  var rootSwitchSet : Set[Long] = Set()
   var dcSet : Set[Long] = Set()
 
   override def preStart(): Unit = {
 
-    // Register self with Edge switch
-    self ! RequestRootSwitchList()
+    self ! RequestDataCenterList()
   }
 
   override def receive: Receive = {
 
     /**
       * Triggered by preStart()
-      * To get the Root switches registered with the CIS.
+      * To get the DataCenter registered with the CIS.
       * Receiver: CIS
       */
-    case RequestRootSwitchList() => {
-      log.info("preStart::TimeActor:RequestRootSwitchList")
-      context.actorSelection(ActorUtility.getActorRef("CIS")) ! TimeActorRequestRootSwitchList()
+    case RequestDataCenterList() => {
+      log.info("preStart::TimeActor:RequestDataCenterList")
+      context.actorSelection(ActorUtility.getActorRef("CIS")) ! TimeActorRequestDataCenterList()
 
     }
 
@@ -61,17 +59,10 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       mapIdToDcCountRem + (timeSliceId -> dcSet.size)
       startExecTimeForTimeSlice = Calendar.getInstance().getTimeInMillis
 
-      dcSet.foreach(dc => {
+      dcSet.map(dc => context.actorSelection(ActorUtility
+        .getDcRefString() + s"$dc"))foreach(dcActor => {
 
-        val networkPacketProperties = new NetworkPacketProperties(self.path
-          .toStringWithoutAddress, ActorUtility.getDcRefString() + s"$dc")
-
-        rootSwitchSet.map(rs => context.actorSelection(ActorUtility
-          .getRootSwitchRefString() + s"$rs"))
-          .foreach(rootSwitchActor => {
-
-            rootSwitchActor ! SendTimeSliceInfo(networkPacketProperties, TimeSliceInfo(timeSliceId, timeSlice, startExecTimeForTimeSlice))
-          })
+        dcActor ! SendTimeSliceInfo(TimeSliceInfo(timeSliceId, timeSlice, startExecTimeForTimeSlice))
 
       })
       timeSliceId = timeSliceId + 1
@@ -79,19 +70,7 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
     }
 
     /**
-      * Sender : CIS
-      * Receive a list of Root Switches in the system
-      * Request DataCenter List
-      */
-    case TimeActorReceiveRootSwitchList(rootSwitchIds: Seq[Long]) => {
-      log.info("CISActor::TimeActor:TimeActorReceiveRootSwitchList")
-      rootSwitchSet = rootSwitchSet ++ rootSwitchIds
-
-      context.actorSelection(ActorUtility.getActorRef("CIS")) ! TimeActorRequestDataCenterList()
-    }
-
-    /**
-      * Sender: RootSwitchActor
+      * Sender: DataCenterActor
       * After it receives from all data centers, it repeats the flow.
       * Else it decrements the count of the remaining responses from the DCs.
       */
@@ -101,12 +80,12 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       val newCount:Option[Long]=mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
 
       newCount.filter(_==0).foreach(_ => {self ! TimeSliceCompleted(
-        timeSliceCompleted.networkPacketProperties, timeSliceCompleted.timeSliceInfo)
+        timeSliceCompleted.timeSliceInfo)
 
         seqOfSystemTime +: Seq(TimeStartEnd(timeSliceCompleted.timeSliceInfo
           .sliceStartSysTime,Calendar.getInstance().getTimeInMillis))
 
-        self ! RequestRootSwitchList()
+        self ! RequestDataCenterList()
       })
       newCount.filter(_!=0).map(count => mapIdToDcCountRem +
         (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
@@ -120,12 +99,12 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 
 }
 
-case class RequestRootSwitchList()
+case class RequestDataCenterList()
 
 case class TimeActorReceiveDataCenterList(dcList: Seq[Long])
 
-case class SendTimeSliceInfo(override val networkPacketProperties : NetworkPacketProperties, sliceInfo: TimeSliceInfo) extends NetworkPacket
+case class SendTimeSliceInfo(sliceInfo: TimeSliceInfo)
 
-case class TimeSliceCompleted(override val networkPacketProperties: NetworkPacketProperties, timeSliceInfo:TimeSliceInfo) extends NetworkPacket
+case class TimeSliceCompleted(timeSliceInfo:TimeSliceInfo)
 
 case class TimeActorReceiveRootSwitchList(rootSwitchList: Seq[Long])
