@@ -5,7 +5,7 @@ import com.cloudsimulator.entities.payload.VMPayload
 import pureconfig.error.ConfigReaderFailures
 import pureconfig.generic.auto._
 
-case class Config(rootSwitch : SwitchConfig, dataCenterList : List[DataCenterConfig],
+case class Config(rootSwitchList : List[SwitchConfig], dataCenterList : List[DataCenterConfig],
                   hostList : List[HostConfig], cis : CISConfig,
                   vmPayloadList : List[VMPayload], cloudletPayloadList: List[CloudletPayload])
 
@@ -24,7 +24,6 @@ object Config {
       }
     )
 
-
   }
 }
 
@@ -41,4 +40,5 @@ case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwPro
                       availableRam : Long, availableStorage : Long, availableBw : Double, edgeSwitch : String)
 
 
-case class SwitchConfig(id : Long, switchType : String)
+case class Connection(id : String, connectionType : String)
+case class SwitchConfig(id : Long, switchType : String, upstreamConnections : List[Connection], downstreamConnections : List[Connection])

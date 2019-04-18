@@ -48,7 +48,8 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     // Register self with Edge switch
     self ! CreateVmScheduler
 
-    self ! RegisterWithSwitch
+    // TODO remove host registering logic with edge switch
+    //self ! RegisterWithSwitch
   }
 
   override def receive: Receive = {
@@ -142,23 +143,26 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     }
 
     /**
-      *
+      * Sender : DataCenter
       */
-    case SendTimeSliceInfo(sliceInfo: TimeSliceInfo) => {
+    case sendTimeSliceInfo : SendTimeSliceInfo => {
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
 
       //TODO should be added at the vmScheduler level
-      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sliceInfo.sliceId -> vmIdToRefMap.size)
+      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> vmIdToRefMap.size)
 
-      context.child("vm-scheduler").get ! ScheduleVms(sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
+      context.child("vm-scheduler").get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
     }
 
     case requestHostResourceStatus: RequestHostResourceStatus => {
-      log.info("VmAllocationPolicyActor::HostActor:RequestHostResourceStatus")
+      log.info("EdgeSwitchActor::HostActor:RequestHostResourceStatus")
 
-      sender() ! ReceiveHostResourceStatus(requestHostResourceStatus.requestId,
+      val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+        requestHostResourceStatus.networkPacketProperties.sender)
+
+      sender() ! ReceiveHostResourceStatus(networkPacketProperties, requestHostResourceStatus.requestId,
         new HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
@@ -174,9 +178,10 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       * to provide next time slice when available.
       * Data center accumulates from all hosts and then informs the TimeActor.
       */
-    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
-      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
-      context.parent ! TimeSliceCompleted(sliceInfo)
+    case timeSliceInfo: TimeSliceInfo =>{
+      log.info("VmSchedulerActor::HostActor:TimeSliceCompleted")
+
+      context.parent ! TimeSliceCompleted(timeSliceInfo)
     }
   }
 }
@@ -185,7 +190,7 @@ case class CanAllocateVm(vmPayloadTracker : VMPayloadTracker)
 
 case class AllocateVm(override val networkPacketProperties: NetworkPacketProperties, vmPayload : VMPayload) extends NetworkPacket
 
-case class RequestHostResourceStatus(requestId : Long)  extends NetworkPacket
+case class RequestHostResourceStatus(override val networkPacketProperties: NetworkPacketProperties, requestId : Long)  extends NetworkPacket
 
 case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
                         var availableStorage : Long, var availableBw : Double)  extends NetworkPacket

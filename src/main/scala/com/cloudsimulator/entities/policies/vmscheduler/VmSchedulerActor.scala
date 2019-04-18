@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.policies.vmscheduler
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.cloudsimulator.entities.host.HostResource
-import com.cloudsimulator.entities.network.NetworkPacket
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.SendVmRequirement
 

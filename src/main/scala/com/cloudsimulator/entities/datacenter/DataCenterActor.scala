@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.datacenter
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorSelection, Props}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
@@ -11,7 +11,7 @@ import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperti
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.policies.vmallocation._
-import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, RootSwitchActor}
+import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, NetworkDevice, RootSwitchActor}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor
 import com.cloudsimulator.utils.ActorUtility
@@ -28,14 +28,13 @@ import scala.concurrent.duration.FiniteDuration
   * @param vmToHostMap
   */
 class DataCenterActor(id: Long,
-                      location: String, rootSwitchId: String, cloudletAllocationPolicyId : String)
+                      location: String, rootSwitchId: String, var downStreamConnections : Seq[String])
   extends Actor with ActorLogging {
 
   import context._
 
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
-  private var downlinkSwitches : ListBuffer[String] = ListBuffer()
 
   private val hostList: ListBuffer[String] = ListBuffer()
 
@@ -56,7 +55,8 @@ class DataCenterActor(id: Long,
   override def preStart(): Unit = {
 
     // Register self with CIS actor on startup
-    context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
+    //context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
+    self ! RegisterWithCIS
 
   }
 
@@ -94,12 +94,12 @@ class DataCenterActor(id: Long,
       log.info(s"Request to allocate Vms sent from ${networkPacketProperties.sender}")
 
       // update request-LB mapping to keep track of LB that sent the request
-      requestToLBMap += (id -> sender().path.toStringWithoutAddress)
+      requestToLBMap += (id -> networkPacketProperties.sender)
 
       val vmAllocationPolicyActor = context.child(ActorUtility.vmAllocationPolicy).get
 
       // ask Vm Allocation Policy actor to identify vm-host mapping
-      vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList)
+      vmAllocationPolicyActor ! RequestVmAllocation(id, vmPayloads, hostList.toList, downStreamConnections)
 
       // old logic to send each payload to each host
       // to be deleted shortly
@@ -136,7 +136,7 @@ class DataCenterActor(id: Long,
         var networkPacketProperties = new NetworkPacketProperties(
           self.path.toStringWithoutAddress, vmHost._2)
 
-        downlinkSwitches.foreach(switch => {
+        downStreamConnections.foreach(switch => {
           context.actorSelection(switch) ! AllocateVm(networkPacketProperties, vmHost._1)
         })
 
@@ -148,11 +148,12 @@ class DataCenterActor(id: Long,
       // handle failed vms
       if(receiveVmAllocation.vmAllocationResult.failedAllocationVms.size > 0){
 
-        val loadBalancerActor = context.actorSelection(
-          requestToLBMap.get(receiveVmAllocation.requestId).get)
+        val networkPacketProperties = new NetworkPacketProperties(
+          self.path.toStringWithoutAddress, requestToLBMap.get(receiveVmAllocation.requestId).get)
 
         // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
-        loadBalancerActor ! FailedVmCreation(id, receiveVmAllocation.requestId,
+        context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
+          FailedVmCreation(networkPacketProperties, id, receiveVmAllocation.requestId,
           receiveVmAllocation.vmAllocationResult.failedAllocationVms)
 
       }
@@ -161,14 +162,25 @@ class DataCenterActor(id: Long,
 
     case createSwitch : CreateSwitch => {
 
-      downlinkSwitches += (createSwitch.switchType + "-" + createSwitch.switchId)
 
       createSwitch.switchType match {
-        case "edge" => context.actorOf(Props(new EdgeSwitchActor),
-          createSwitch.switchType + "-" + createSwitch.switchId)
+        case "edge" => {
 
-        case "aggregate" => context.actorOf(Props(new AggregateSwitchActor),
-          createSwitch.switchType + "-" + createSwitch.switchId)
+          val switchActor = context.actorOf(Props(new EdgeSwitchActor(
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.switchType + "-" + createSwitch.switchId)
+
+          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+        }
+
+        case "aggregate" => {
+
+          val switchActor = context.actorOf(Props(new AggregateSwitchActor(
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.switchType + "-" + createSwitch.switchId)
+
+          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+        }
       }
     }
 
@@ -240,14 +252,22 @@ class DataCenterActor(id: Long,
       * Sender: TimeActor
       * TimeSliceInfo to be sent down the hierarchy till the VMSchedulerPolicy
       */
-    case SendTimeSliceInfo(sliceInfo:TimeSliceInfo) =>{
+    case sendTimeSliceInfo: SendTimeSliceInfo => {
 
-      log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
-      mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sliceInfo.sliceId -> hostList.size)
+      if(mapSliceIdToHostCountRem.contains(sendTimeSliceInfo.sliceInfo.sliceId)){
+        log.info(s"Time Slice ${sendTimeSliceInfo.sliceInfo.sliceId} already received by DC")
+      }
 
-      hostList.foreach(host=>{
-        context.actorSelection(host) ! SendTimeSliceInfo(sliceInfo)
-      })
+      else {
+        log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
+        mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> hostList.size)
+
+          hostList.foreach(host => {
+
+            context.actorSelection(host) ! SendTimeSliceInfo(sendTimeSliceInfo.sliceInfo)
+
+          })
+      }
     }
 
     /**
@@ -255,11 +275,17 @@ class DataCenterActor(id: Long,
       * After it receives from all hosts, it sends to the TimeActor to send the next time slice when available
       * Else it decrements the count of the remaining responses from the host.
       */
-    case TimeSliceCompleted(sliceInfo:TimeSliceInfo) =>{
-      log.info("DataCenterActor::HostActor:TimeSliceCompleted")
-      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(sliceInfo.sliceId).map(_-1)
-      newCount.filter(_==0).foreach(_ => context.actorSelection(ActorUtility.getActorRef("TimeActor")) ! TimeSliceCompleted(sliceInfo))
-      newCount.filter(_!=0).foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem+(sliceInfo.sliceId -> (count-1)))
+    case timeSliceCompleted: TimeSliceCompleted =>{
+      log.info("HostActor::DataCenterActor:TimeSliceCompleted")
+      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
+
+      newCount.filter(_==0)
+        .foreach(_ => context.actorSelection(ActorUtility.getActorRef("time-actor")) !
+          TimeSliceCompleted(timeSliceCompleted.timeSliceInfo))
+
+      newCount.filter(_!=0)
+        .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +
+          (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
     }
 
 
@@ -285,7 +311,7 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
 
-case class CreateSwitch(switchType : String, switchId : Long)
+case class CreateSwitch(switchType : String, switchId : Long, upstreamConnections : List[String], downstreamConnections: List[String])
 
 case class CheckDCForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload],vmList:List[Long])
 

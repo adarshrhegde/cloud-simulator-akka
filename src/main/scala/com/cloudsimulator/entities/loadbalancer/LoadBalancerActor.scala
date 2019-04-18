@@ -15,7 +15,7 @@ import com.cloudsimulator.utils.ActorUtility
   * Entry point into the cloud architecture
   * Accepts requests from the user
   */
-class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
+class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLogging {
 
   var requestIdMap: Map[Long, RequestStatus.Value] = Map()
 
@@ -59,7 +59,7 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case ReceiveDataCenterList(id, payloads: List[Payload], dcList) => {
 
-      log.info(s"RootSwitchActor::LoadBalancerActor:ReceiveDataCenterList:$id")
+      log.info(s"CISActor::LoadBalancerActor:ReceiveDataCenterList:$id")
 
       val selectionPolicy: ActorSelection = context.actorSelection(ActorUtility.getActorRef("datacenter-selection-policy"))
 
@@ -81,7 +81,8 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
 
         case Some(dcId) => {
 
-          val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
+          // TODO foreach rootswitch instead of 0
+          val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchIds(0)))
 
           val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dcId}"))
 
@@ -117,7 +118,10 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case failedVmCreation: FailedVmCreation => {
 
-      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.dcId -> (requestIdToCheckedDcMap(failedVmCreation.dcId) ++ Seq(failedVmCreation.dcId)))
+      log.info(s"RootSwitchActor::LoadBalancerActor:FailedVmCreation:${failedVmCreation.requestId}")
+
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.requestId ->
+        (requestIdToCheckedDcMap.getOrElse(failedVmCreation.requestId, Seq()) ++ Seq(failedVmCreation.dcId)))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
       // Re-Start the allocation process for the failed Vms
@@ -133,7 +137,8 @@ class LoadBalancerActor(rootSwitchId: String) extends Actor with ActorLogging {
       */
     case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayloads, prevDcId) => {
 
-      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap.getOrElse(reqId, Seq()) ++ Seq(prevDcId)))
+      log.info(s"${sender().path.toStringWithoutAddress}::LoadBalancerActor:ReceiveRemainingCloudletsFromDC:reqId")
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap.getOrElse(reqId, Seq[Long]()) ++ Seq(prevDcId)))
 
       if(cloudletPayloads.nonEmpty){
         // Re-Start the allocation process for the failed cloudlets
@@ -157,7 +162,7 @@ case class VMRequest(requestId: Long, vmPayloads: List[VMPayload]) extends Netwo
 
 case class ReceiveDataCenterList(requestId: Long, payloads: List[Payload], dcList: List[Long]) extends NetworkPacket
 
-case class FailedVmCreation(dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
+case class FailedVmCreation(override val networkPacketProperties : NetworkPacketProperties, dcId : Long, requestId : Long, failedVmPayloads: List[VMPayload]) extends NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
 

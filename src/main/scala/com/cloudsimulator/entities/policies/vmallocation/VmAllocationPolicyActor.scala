@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging}
 import com.cloudsimulator.entities.datacenter.ReceiveVmAllocation
 import com.cloudsimulator.entities.host.{HostResource, RequestHostResourceStatus}
+import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
 
 import scala.concurrent.duration.FiniteDuration
@@ -64,9 +65,18 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
       hostCount = requestVmAllocation.hostList.size
 
       // Send message to each host in host list of DataCenter to send resource status
-      requestVmAllocation.hostList.map(host => context.actorSelection(host))
-        .foreach(hostActor => {
-          hostActor ! RequestHostResourceStatus(requestId)
+      requestVmAllocation.hostList.foreach(hostName => {
+
+        val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+          hostName)
+
+        requestVmAllocation.downstreamSwitches.map(sw => context.actorSelection(sw))
+        .foreach(switchActor => {
+
+          switchActor ! RequestHostResourceStatus(networkPacketProperties, requestId)
+
+        })
+
         })
 
       self ! StartAllocation
@@ -75,15 +85,15 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
     /**
       * Receive the Resource status from a host
       */
-    case ReceiveHostResourceStatus(id, hostResource : HostResource) => {
+    case receiveHostResourceStatus: ReceiveHostResourceStatus => {
       log.info("HostActor::VmAllocationPolicyActor:ReceiveHostResourceStatus")
 
       /**
         * If the host is responding to the same request as being processed
         * update the Host Resource Map with the sent information
         */
-      if(id == requestId){
-        hostResources += (sender().path.toStringWithoutAddress -> hostResource)
+      if(receiveHostResourceStatus.requestId == requestId){
+        hostResources += (receiveHostResourceStatus.networkPacketProperties.sender -> receiveHostResourceStatus.hostResource)
 
         self ! StartAllocation
       }
@@ -98,11 +108,9 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
       if(hostResources.size == hostCount){
         log.info("VmAllocationPolicy::VmAllocationPolicy:StartAllocation")
 
-        log.info(s"Allocation VM Payloads ${vmPayloads.foreach(_ => toString)} " +
-          s" to ${hostResources.foreach(_ => toString)}")
-
         val vmAllocationResult = vmAllocationPolicy.allocateVMs(vmPayloads, hostResources)
 
+        log.info(s"VM allocation result -> ${vmAllocationResult.vmHostMap}" )
         context.parent ! ReceiveVmAllocation(requestId, vmAllocationResult)
 
       } else {
@@ -120,9 +128,9 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
 }
 
 
-case class RequestVmAllocation(id : Long, vmPayloads : List[VMPayload], hostList : List[String])
+case class RequestVmAllocation(id : Long, vmPayloads : List[VMPayload], hostList : List[String], downstreamSwitches : Seq[String]) extends NetworkPacket
 
-case class ReceiveHostResourceStatus(requestId : Long, hostResource: HostResource)
+case class ReceiveHostResourceStatus(override val networkPacketProperties: NetworkPacketProperties, requestId : Long, hostResource: HostResource) extends NetworkPacket
 
 final case class StartAllocation()
 
