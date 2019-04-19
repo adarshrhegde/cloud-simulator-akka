@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.PrintCloudletsExectionStatus
 import com.cloudsimulator.entities.payload.cloudlet.{CloudletExecution, CloudletPayload}
 import com.cloudsimulator.entities.policies.cloudletscheduler.{CloudletScheduler, TimeSharedCloudletScheduler}
 import com.cloudsimulator.entities.policies.vmscheduler.VmRequirement
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.utils.ActorUtility
 
 class VmActor(id : Long, userId : Long, mips : Long,
@@ -56,7 +56,7 @@ class VmActor(id : Long, userId : Long, mips : Long,
       log.info(s"VmScheduler::VmActor:SendTimeSliceInfo:cloudletsExecuted:$cloudletsExecuted")
 
       context.system.actorSelection(ActorUtility.getActorRef(ActorUtility.cloudletPrintActor)) ! PrintCloudletsExectionStatus(cloudletsExecuted)
-
+      sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
     }
   }
 

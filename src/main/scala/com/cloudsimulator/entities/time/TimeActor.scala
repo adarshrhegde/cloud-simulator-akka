@@ -75,12 +75,13 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       * Else it decrements the count of the remaining responses from the DCs.
       */
     case timeSliceCompleted: TimeSliceCompleted=>{
-      log.info("RootSwitchActor::HostActor:TimeSliceCompleted")
+      log.info("DataCenterActor::TimeActor:TimeSliceCompleted")
 
       val newCount:Option[Long]=mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
 
-      newCount.filter(_==0).foreach(_ => {self ! TimeSliceCompleted(
-        timeSliceCompleted.timeSliceInfo)
+      newCount.filter(_==0).foreach(_ => {
+//        self ! TimeSliceCompleted(
+//        timeSliceCompleted.timeSliceInfo)
 
         seqOfSystemTime +: Seq(TimeStartEnd(timeSliceCompleted.timeSliceInfo
           .sliceStartSysTime,Calendar.getInstance().getTimeInMillis))

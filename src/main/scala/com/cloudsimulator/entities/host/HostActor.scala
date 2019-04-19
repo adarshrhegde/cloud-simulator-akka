@@ -41,8 +41,6 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
   private var vmRefList : Seq[ActorRef] = Seq()
 
-  var mapSliceIdToVmCountRem: Map[Long, Long] = Map()
-
   override def preStart(): Unit = {
 
     // Register self with Edge switch
@@ -148,10 +146,9 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     case sendTimeSliceInfo : SendTimeSliceInfo => {
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
 
-      //TODO should be added at the vmScheduler level
-      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> vmIdToRefMap.size)
 
-      context.child("vm-scheduler").get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
+
+      context.child(ActorUtility.vmScheduler).get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
       availableStorage, availableBw))
 
     }
@@ -178,10 +175,9 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       * to provide next time slice when available.
       * Data center accumulates from all hosts and then informs the TimeActor.
       */
-    case timeSliceInfo: TimeSliceInfo =>{
+    case timeSliceCompleted: TimeSliceCompleted =>{
       log.info("VmSchedulerActor::HostActor:TimeSliceCompleted")
-
-      context.parent ! TimeSliceCompleted(timeSliceInfo)
+      context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
     }
   }
 }

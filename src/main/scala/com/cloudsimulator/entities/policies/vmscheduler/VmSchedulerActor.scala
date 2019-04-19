@@ -3,7 +3,7 @@ package com.cloudsimulator.entities.policies.vmscheduler
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.cloudsimulator.entities.host.HostResource
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceInfo}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.SendVmRequirement
 
 
@@ -22,6 +22,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
   private var hostResource : HostResource = _
 
+  var mapSliceIdToVmCountRem: Map[Long, Long] = Map()
+
   override def receive: Receive = {
 
 
@@ -37,6 +39,9 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
       slice = scheduleVms.slice
       hostResource = scheduleVms.hostResource
+
+      //count for time-slices sent to VMs
+      mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (slice.sliceId -> scheduleVms.vmList.size)
 
       scheduleVms.vmList.foreach(vm => {
 
@@ -87,6 +92,28 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
     }
       //TODO call TimeSliceCompleted on the host when all timeslices are exhausted
+    /**
+      * Sender : VmActor
+      * Time slice completed message received from the VmActor.
+      */
+    case timeSliceCompleted: TimeSliceCompleted=>{
+      log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted:timeSlotId:${timeSliceCompleted.timeSliceInfo.sliceId}")
+
+
+      val newCount:Option[Long]=mapSliceIdToVmCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(count=>{
+        log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is ${count-1}")
+        mapSliceIdToVmCountRem=
+          mapSliceIdToVmCountRem +
+            (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1))
+        count-1
+      })
+
+      newCount.filter(_==0).foreach(_ => {
+        log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is 0")
+        context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
+      })
+
+    }
   }
 }
 
