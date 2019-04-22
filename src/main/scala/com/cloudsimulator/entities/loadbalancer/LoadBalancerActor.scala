@@ -81,28 +81,36 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
 
         case Some(dcId) => {
 
-          // TODO foreach rootswitch instead of 0
-          val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchIds(0)))
+          /**
+            * Send workload to datacenter via rootswitch. Since LB is not aware of architecture
+            * message is sent to all root switches. The root switch connected to selected DC will
+            * forward the packet down only
+            */
 
-          val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dcId}"))
+          rootSwitchIds.map(rs => context.actorSelection(ActorUtility.getActorRef(rs)))
+            .foreach(rootSwitchActor => {
 
-          val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
-            dcActor.pathString)
+              val dcActor = context.actorSelection(ActorUtility.getActorRef(s"dc-${dcId}"))
 
-          if (isVmPayload(payloads)) {
-            // Request DataCenter to create VMs in its hosts
-            // Send message to root switch to forward to DataCenter
-            rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
-            //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
-          }
-          else {
-            val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
-            val vmList:List[Long]=cloudletPayload.map(_.vmId)
-            //send the cloudlet data to the dc and it takes the necessary steps
-            //TODO vmList can be removed
+              val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+                dcActor.pathString)
 
-            rootSwitchActor ! CheckDCForRequiredVMs(networkPacketProperties, id,cloudletPayload, vmList)
-          }
+              if (isVmPayload(payloads)) {
+                // Request DataCenter to create VMs in its hosts
+                // Send message to root switch to forward to DataCenter
+                rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_.asInstanceOf[VMPayload]))
+                //rootSwitchActor ! RequestCreateVms(networkPacketProperties, id, payloads.map(_[VMPayload]))
+              }
+              else {
+                val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
+                val vmList:List[Long]=cloudletPayload.map(_.vmId)
+                //send the cloudlet data to the dc and it takes the necessary steps
+                //TODO vmList can be removed
+
+                rootSwitchActor ! CheckDCForRequiredVMs(networkPacketProperties, id,cloudletPayload, vmList)
+              }
+            })
+
 
         }
       }
