@@ -46,8 +46,6 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
     // Register self with Edge switch
     self ! CreateVmScheduler
 
-    // TODO remove host registering logic with edge switch
-    //self ! RegisterWithSwitch
   }
 
   override def receive: Receive = {
@@ -107,10 +105,6 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       sender() ! VmAllocationSuccess(networkPacketProperties, allocateVm.vmPayload)
     }
 
-    case RegisterWithSwitch => {
-      log.info("HostActor::HostActor:RegisterWithSwitch")
-      context.actorSelection(s"../$edgeSwitchName") ! RegisterHost(self.path.toStringWithoutAddress)
-    }
 
     /**
       * Sender: DataCenterActor
@@ -190,8 +184,6 @@ case class RequestHostResourceStatus(override val networkPacketProperties: Netwo
 
 case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
                         var availableStorage : Long, var availableBw : Double)  extends NetworkPacket
-
-case class RegisterWithSwitch()
 
 case class CheckHostForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload], vmList: List[Long])
 
