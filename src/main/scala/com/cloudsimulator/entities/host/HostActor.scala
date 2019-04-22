@@ -78,7 +78,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
     case allocateVm: AllocateVm => {
 
-      log.info(s"LoadBalancerActor::DataCenterActor:AllocateVm:$id")
+      log.info(s"DataCenterActor::HostActor:AllocateVm:$id")
 
       // update host resources with vm payload
       availableNoOfPes -= allocateVm.vmPayload.numberOfPes

@@ -197,19 +197,19 @@ class DataCenterActor(id: Long,
       * vmList contains the VM ids required by the cloudlets
       * The cloudlet have a vmId present which tells us on which VM it can run.
       */
-    case CheckDCForRequiredVMs(id,cloudletPayloads,vmList) => {
-      //TODO change to RootSwitchActor
-      log.info(s"LoadBalancerActor/RootSwitchActor::DataCenterActor:CheckDCForRequiredVMs")
+    case checkDCForRequiredVMs: CheckDCForRequiredVMs => {
+
+      log.info(s"RootSwitchActor::DataCenterActor:CheckDCForRequiredVMs")
       // so we can update all cloudlets when their execution status is received.
-      cloudletPayloadTrackerMap=cloudletPayloadTrackerMap + (id -> cloudletPayloads)
+      cloudletPayloadTrackerMap=cloudletPayloadTrackerMap + (checkDCForRequiredVMs.id -> checkDCForRequiredVMs.cloudletPayloads)
 
       // count kept to check if responses from all the hosts is received
       //We have to receive response from all the host since we have a vmId present in the cloudlet.
-      cloudletReqCountFromHost=cloudletReqCountFromHost + (id->hostList.size)
+      cloudletReqCountFromHost=cloudletReqCountFromHost + (checkDCForRequiredVMs.id->hostList.size)
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
-        context.actorSelection(host) ! CheckHostForRequiredVMs(id,cloudletPayloads,vmList)
+        context.actorSelection(host) ! CheckHostForRequiredVMs(id,checkDCForRequiredVMs.cloudletPayloads,checkDCForRequiredVMs.vmList)
       })
     }
 
@@ -313,7 +313,7 @@ case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocatio
 
 case class CreateSwitch(switchType : String, switchId : Long, upstreamConnections : List[String], downstreamConnections: List[String])
 
-case class CheckDCForRequiredVMs(id: Long, cloudletPayloads: List[CloudletPayload],vmList:List[Long])
+case class CheckDCForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload], vmList:List[Long]) extends NetworkPacket
 
 //case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
 

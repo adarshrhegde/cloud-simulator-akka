@@ -6,7 +6,7 @@ import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
-import com.cloudsimulator.entities.payload.{ Payload, VMPayload}
+import com.cloudsimulator.entities.payload.{Payload, VMPayload}
 import com.cloudsimulator.entities.policies.datacenterselection.FindDataCenter
 import com.cloudsimulator.utils.ActorUtility
 
@@ -99,9 +99,9 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
             val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
             val vmList:List[Long]=cloudletPayload.map(_.vmId)
             //send the cloudlet data to the dc and it takes the necessary steps
-            //TODO change dcActor to rootSwitchActor
             //TODO vmList can be removed
-            dcActor ! CheckDCForRequiredVMs(id,cloudletPayload,vmList )
+
+            rootSwitchActor ! CheckDCForRequiredVMs(networkPacketProperties, id,cloudletPayload, vmList)
           }
 
         }

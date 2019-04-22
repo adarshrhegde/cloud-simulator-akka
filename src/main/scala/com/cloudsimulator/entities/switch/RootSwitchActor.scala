@@ -1,7 +1,7 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.{RegisterWithCIS, RequestCreateVms}
+import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RegisterWithCIS, RequestCreateVms}
 import com.cloudsimulator.entities.{DcRegistration, RootSwitchRegistration}
 import com.cloudsimulator.entities.loadbalancer.FailedVmCreation
 import com.cloudsimulator.utils.ActorUtility
@@ -40,6 +40,11 @@ class RootSwitchActor(id : Long, downStreamEntities: List[String]) extends Actor
       log.info(s"DataCenterActor::RootSwitchActor:FailedVmCreation:${failedVmCreation.requestId}" +
         s"::DataCenter:${failedVmCreation.dcId}")
       processPacketUp(failedVmCreation.networkPacketProperties.receiver, failedVmCreation)
+    }
+
+    case checkDCForRequiredVMs: CheckDCForRequiredVMs => {
+      log.info(s"LoadBalancerActor::RootSwitchActor:CheckDCForRequiredVMs:${checkDCForRequiredVMs.id}")
+      processPacketDown(checkDCForRequiredVMs.networkPacketProperties.receiver, checkDCForRequiredVMs)
     }
 
   }
