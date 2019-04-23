@@ -8,20 +8,11 @@ import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStat
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 import com.cloudsimulator.utils.ActorUtility
 
-import scala.collection.mutable.ListBuffer
 
 class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String]) extends Actor with ActorLogging with Switch {
 
-  private var downlinkHostList : ListBuffer[String] = ListBuffer()
-  private var uplinkEntityList : ListBuffer[String] = ListBuffer()
 
   override def receive: Receive = {
-
-    // TODO Remove logic for hosts to register with edge switch
-    case RegisterHost(hostPath) => {
-      log.info(s"HostActor::EdgeSwitchActor:RegisterHost-$hostPath")
-      downlinkHostList += hostPath
-    }
 
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::EdgeSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")
