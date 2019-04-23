@@ -200,7 +200,7 @@ class DataCenterActor(id: Long,
     case CheckDCForRequiredVMs(id,cloudletPayloads,vmList) => {
       //TODO change to RootSwitchActor
       log.info(s"LoadBalancerActor/RootSwitchActor::DataCenterActor:CheckDCForRequiredVMs")
-      // so we can update all cloudlets when their execution status is received.
+      // so we keep track of the cloudlet payload received on this DC.
       cloudletPayloadTrackerMap=cloudletPayloadTrackerMap + (id -> cloudletPayloads)
 
       // count kept to check if responses from all the hosts is received
@@ -216,23 +216,22 @@ class DataCenterActor(id: Long,
     /**
       * Sender: Host present in the DC
       *
-      * Check if any cloudlet was assigned to a VM on this host, if so,
-      * update the cloudlet on the DC.
+      *
       * Decrement the host count for this CloudletPayload
       * Send all the remaining cloudlets to the LB.
       */
-    case HostCheckedForRequiredVms(reqId, cloudletPayloads) => {
+    case HostCheckedForRequiredVms(reqId, cloudletPayloadsleft) => {
       log.info(s"HostActor::DataCenterActor:HostCheckedForRequiredVms:$reqId")
 
-      val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
+//      val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
 
-      initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
+      /*initialPayload.zip(cloudletPayloads).foreach(cloudlet => {
         if (cloudlet._1.payloadId == cloudlet._2.payloadId) {
 //          cloudlet._1.status = cloudlet._2.status
           cloudlet._1.hostId = cloudlet._2.hostId
           cloudlet._1.dcId = cloudlet._2.dcId
         }
-      })
+      })*/
 
       // reduce cloudletReqCountFromHost for the reqId
       cloudletReqCountFromHost=cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))

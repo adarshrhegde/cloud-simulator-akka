@@ -122,7 +122,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info(s"CheckHostForRequiredVMs:$vmIdToRefMap")
       log.debug(s"CheckHostForRequiredVMs:CloudletPayload:$cloudletPayloads")
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
-      val newCloudlets: List[CloudletPayload] = cloudletPayloads
+      val cloudletsLeft: List[CloudletPayload] = cloudletPayloads
         .map(cloudlet => {
           if (/*cloudlet.status.equals(CloudletPayloadStatus.SENT) &&*/
             vmIdToRefMap.contains(cloudlet.vmId)) {
@@ -135,9 +135,9 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
             context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(reqId, cloudlet)
           }
           cloudlet
-        })
+        }).filter(cloudlet=>{!vmIdToRefMap.contains(cloudlet.vmId)})
       //send response(new cloudlets) back to the DC
-      context.parent ! HostCheckedForRequiredVms(reqId, newCloudlets)
+      context.parent ! HostCheckedForRequiredVms(reqId, cloudletsLeft)
     }
 
     /**
