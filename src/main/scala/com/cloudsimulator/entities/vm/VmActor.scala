@@ -50,14 +50,14 @@ class VmActor(id : Long, userId : Long, mips : Long,
       // then update the status of cloudlet accordingly.
       timeSliceInfo = sendTimeSliceInfo.sliceInfo
       // send the List CloudletExecution for execution
-      val cloudletsExecuted:Seq[CloudletExecution]=cloudletScheduler.scheduleCloudlets(
+      currentCloudletsExecSeq=cloudletScheduler.scheduleCloudlets(
         timeSliceInfo,mips,noOfPes,
         currentCloudletsExecSeq,cost)
 
       log.info(s"VmScheduler::VmActor:SendTimeSliceInfo:Completed:$id")
-      log.info(s"VmScheduler::VmActor:SendTimeSliceInfo:cloudletsExecuted:$cloudletsExecuted")
+      log.info(s"VmScheduler::VmActor:SendTimeSliceInfo:cloudletsExecuted:$currentCloudletsExecSeq")
 
-      context.system.actorSelection(ActorUtility.getActorRef(ActorUtility.cloudletPrintActor)) ! PrintCloudletsExectionStatus(cloudletsExecuted)
+      context.system.actorSelection(ActorUtility.getActorRef(ActorUtility.cloudletPrintActor)) ! PrintCloudletsExectionStatus(currentCloudletsExecSeq)
       sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
     }
   }

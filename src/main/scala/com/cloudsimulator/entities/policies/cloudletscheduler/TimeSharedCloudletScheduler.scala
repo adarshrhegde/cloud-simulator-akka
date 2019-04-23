@@ -11,12 +11,13 @@ case class TimeSharedCloudletScheduler() extends CloudletScheduler {
 
   override def scheduleCloudlets(timeSliceInfo: TimeSliceInfo, mips: Long,
                                  noOfPes: Int,
-                                 cloudlets: Seq[CloudletExecution], cost: Cost): Seq[CloudletExecution] = {
+                                 cloudletExecutionSeq: Seq[CloudletExecution], cost: Cost): Seq[CloudletExecution] = {
+
+
+    //only run on the one's not completed
+    val cloudlets: Seq[CloudletExecution] = cloudletExecutionSeq.filter(_.remWorkloadLength > 0)
 
     val timeSliceForEachCloudlet: Double = timeSliceInfo.slice.toDouble / cloudlets.size
-
-    //TODO only run on the one's not completed
-    // put this check on the VMActor
 
     cloudlets.map(cloudlet => {
       val newTimeSliceUsageInfo = cloudlet.timeSliceUsageInfo :+
