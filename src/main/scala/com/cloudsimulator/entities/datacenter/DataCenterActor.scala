@@ -167,7 +167,7 @@ class DataCenterActor(id: Long,
         case "edge" => {
 
           val switchActor = context.actorOf(Props(new EdgeSwitchActor(
-            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections, createSwitch.switchDelay)),
             createSwitch.switchType + "-" + createSwitch.switchId)
 
           downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
@@ -176,7 +176,7 @@ class DataCenterActor(id: Long,
         case "aggregate" => {
 
           val switchActor = context.actorOf(Props(new AggregateSwitchActor(
-            createSwitch.upstreamConnections, createSwitch.downstreamConnections)),
+            createSwitch.upstreamConnections, createSwitch.downstreamConnections, createSwitch.switchDelay)),
             createSwitch.switchType + "-" + createSwitch.switchId)
 
           downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
@@ -191,7 +191,7 @@ class DataCenterActor(id: Long,
 
 
     /**
-      * Sender : LoadBalancerActor/RootSwitchActor
+      * Sender : LoadBalancerActor via RootSwitchActor
       *
       * Check if the DC has a host running a VM on which the the cloudlet needs to be executed.
       * vmList contains the VM ids required by the cloudlets
@@ -209,7 +209,13 @@ class DataCenterActor(id: Long,
 
       //iterate over all host actor references and check for the required VMs
       hostList.foreach(host=>{
-        context.actorSelection(host) ! CheckHostForRequiredVMs(id,checkDCForRequiredVMs.cloudletPayloads,checkDCForRequiredVMs.vmList)
+
+        val networkPacketProperties = new NetworkPacketProperties(
+          self.path.toStringWithoutAddress, host)
+
+        downStreamConnections.foreach(switch => {
+          context.actorSelection(switch) ! CheckHostForRequiredVMs(networkPacketProperties, checkDCForRequiredVMs.id,checkDCForRequiredVMs.cloudletPayloads,checkDCForRequiredVMs.vmList)
+        })
       })
     }
 
@@ -220,8 +226,8 @@ class DataCenterActor(id: Long,
       * Decrement the host count for this CloudletPayload
       * Send all the remaining cloudlets to the LB.
       */
-    case HostCheckedForRequiredVms(reqId, cloudletPayloadsleft) => {
-      log.info(s"HostActor::DataCenterActor:HostCheckedForRequiredVms:$reqId")
+    case hostCheckedForRequiredVms: HostCheckedForRequiredVms => {
+      log.info(s"SwitchActor::DataCenterActor:HostCheckedForRequiredVms:${hostCheckedForRequiredVms.reqId}")
 
 //      val initialPayload: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
 
@@ -234,16 +240,23 @@ class DataCenterActor(id: Long,
       })*/
 
       // reduce cloudletReqCountFromHost for the reqId
-      cloudletReqCountFromHost=cloudletReqCountFromHost + (reqId -> (cloudletReqCountFromHost(reqId) - 1))
+      cloudletReqCountFromHost=cloudletReqCountFromHost + (hostCheckedForRequiredVms.reqId ->
+        (cloudletReqCountFromHost(hostCheckedForRequiredVms.reqId) - 1))
 
       // iterate over all cloudlets and check if any for assigned status,
       // send the remaining cloudlets to LB, so it can be sent to another DC.
-      if (cloudletReqCountFromHost(reqId) == 0) {
-        val remainingCloudlets: List[CloudletPayload] = cloudletPayloadTrackerMap(reqId)
+      if (cloudletReqCountFromHost(hostCheckedForRequiredVms.reqId) == 0) {
+        val remainingCloudlets: List[CloudletPayload] = cloudletPayloadTrackerMap(hostCheckedForRequiredVms.reqId)
           .filter(cloudlet=>{
             cloudlet.dcId != id
           })
-        context.actorSelection(ActorUtility.getActorRef("loadBalancer")) ! ReceiveRemainingCloudletsFromDC(reqId,remainingCloudlets,id)
+
+        val networkPacketProperties = new NetworkPacketProperties(self.path.toStringWithoutAddress,
+          ActorUtility.getActorRef("loadBalancer"))
+
+        context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
+          ReceiveRemainingCloudletsFromDC(networkPacketProperties, hostCheckedForRequiredVms.reqId,
+            remainingCloudlets,id)
       }
     }
 
@@ -310,10 +323,10 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
 
-case class CreateSwitch(switchType : String, switchId : Long, upstreamConnections : List[String], downstreamConnections: List[String])
+case class CreateSwitch(switchType : String, switchId : Long, switchDelay : Int, upstreamConnections : List[String], downstreamConnections: List[String])
 
 case class CheckDCForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload], vmList:List[Long]) extends NetworkPacket
 
 //case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
 
-case class HostCheckedForRequiredVms(reqId:Long, cloudletPayload: List[CloudletPayload])
+case class HostCheckedForRequiredVms(override val networkPacketProperties: NetworkPacketProperties, reqId:Long, cloudletPayload: List[CloudletPayload]) extends NetworkPacket

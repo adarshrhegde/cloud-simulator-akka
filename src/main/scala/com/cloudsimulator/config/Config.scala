@@ -41,4 +41,4 @@ case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwPro
 
 
 case class Connection(id : String, connectionType : String)
-case class SwitchConfig(id : Long, switchType : String, upstreamConnections : List[Connection], downstreamConnections : List[Connection])
+case class SwitchConfig(id : Long, switchType : String, switchDelay : Int, upstreamConnections : List[Connection], downstreamConnections : List[Connection])

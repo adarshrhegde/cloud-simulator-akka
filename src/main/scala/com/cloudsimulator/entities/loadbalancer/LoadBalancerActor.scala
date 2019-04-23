@@ -30,6 +30,8 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
       * Add to the requestMap and request for the DCList from the CIS
       */
     case CloudletRequest(id, cloudletPayloads: List[CloudletPayload]) => {
+      log.info("SimulatorActor::LoadBalancerActor:CloudletRequest")
+
       requestIdMap=requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
       val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
@@ -70,6 +72,10 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
     /**
       * Receive the selected DataCenter for creating the VM
       * Sender: DataCenterSelectionPolicy actor
+      * The payloads can be of two types : VmPayload/CloudletPayload
+      * In case of VMPayload the selected datacenter is the used to allocate VMs
+      * In case of CloudletPayload the selected datacenter is used to search for
+      * the VM where the cloudlet will be deployed
       */
     case ReceiveDataCenterForVm(id, payloads: List[Payload], dc) => {
 
@@ -77,7 +83,8 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
 
       dc match {
 
-        case None => log.info(s"No DataCenter can be selected for request ID $id")
+        case None => log.info(s"No DataCenter can be selected to complete request ID $id" +
+          s", following payloads are un-allocated $payloads")
 
         case Some(dcId) => {
 
@@ -143,15 +150,17 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
       * For the current reqId the prevDcId is recorded and the DCSelectionPolicy selects
       * only from the remaining DC.
       */
-    case ReceiveRemainingCloudletsFromDC(reqId, cloudletPayloads, prevDcId) => {
+    case receiveRemainingCloudletsFromDC: ReceiveRemainingCloudletsFromDC => {
 
       log.info(s"${sender().path.toStringWithoutAddress}::LoadBalancerActor:ReceiveRemainingCloudletsFromDC:reqId")
-      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (reqId -> (requestIdToCheckedDcMap.getOrElse(reqId, Seq[Long]()) ++ Seq(prevDcId)))
+      requestIdToCheckedDcMap = requestIdToCheckedDcMap + (receiveRemainingCloudletsFromDC.reqId ->
+        (requestIdToCheckedDcMap.getOrElse(receiveRemainingCloudletsFromDC.reqId, Seq[Long]()) ++
+          Seq(receiveRemainingCloudletsFromDC.prevDcId)))
 
-      if(cloudletPayloads.nonEmpty){
+      if(receiveRemainingCloudletsFromDC.cloudletPayload.nonEmpty){
         // Re-Start the allocation process for the failed cloudlets
         val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
-        cis ! RequestDataCenterList(reqId, cloudletPayloads)
+        cis ! RequestDataCenterList(receiveRemainingCloudletsFromDC.reqId, receiveRemainingCloudletsFromDC.cloudletPayload)
 
       }
     }
@@ -174,4 +183,4 @@ case class FailedVmCreation(override val networkPacketProperties : NetworkPacket
 
 case class ReceiveDataCenterForVm(requestId: Long, payloads: List[Payload], dc: Option[Long]) extends NetworkPacket
 
-case class ReceiveRemainingCloudletsFromDC(reqId:Long,cloudletPayload: List[CloudletPayload],prevDcId:Long)
+case class ReceiveRemainingCloudletsFromDC(override val networkPacketProperties: NetworkPacketProperties, reqId:Long,cloudletPayload: List[CloudletPayload],prevDcId:Long) extends NetworkPacket

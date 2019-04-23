@@ -66,7 +66,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
           connection.id
         })
 
-        context.actorOf(Props(new RootSwitchActor(rootSwitchConfig.id, dcConnections)), rootSwitchName)
+        context.actorOf(Props(new RootSwitchActor(rootSwitchConfig.id, dcConnections, rootSwitchConfig.switchDelay)), rootSwitchName)
 
         rootSwitchName
       })
@@ -94,7 +94,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         dcActor ! CreateVmAllocationPolicy(vmAllocationPolicy)
 
         dc.switchList.foreach(switch => {
-            dcActor ! CreateSwitch(switch.switchType, switch.id,
+            dcActor ! CreateSwitch(switch.switchType, switch.id, switch.switchDelay,
               switch.upstreamConnections.map(c => c.id), switch.downstreamConnections.map(c => c.id))
           })
 
