@@ -35,7 +35,7 @@ import scala.collection.mutable.ListBuffer
 
 class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
                 ramProvisioner : String, vmScheduler : VmScheduler, var availableNoOfPes : Int, mips: Long,
-                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String, cost:Cost)
+                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String, cost : Cost)
   extends Actor with ActorLogging {
 
   private var vmIdToRefMap: Map[Long, String] = Map()
@@ -91,7 +91,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       val vmActor = context.actorOf(Props(new VmActor(allocateVm.vmPayload.payloadId,
         allocateVm.vmPayload.userId, allocateVm.vmPayload.mips,
         allocateVm.vmPayload.numberOfPes, allocateVm.vmPayload.ram,
-        allocateVm.vmPayload.bw)), s"vm-${allocateVm.vmPayload.payloadId}")
+        allocateVm.vmPayload.bw,cost)), s"vm-${allocateVm.vmPayload.payloadId}")
 
       vmRefList = vmRefList :+ vmActor
 

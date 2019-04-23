@@ -3,6 +3,7 @@ package com.cloudsimulator.entities.policies.cloudletscheduler
 import java.util.Calendar
 
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
+import com.cloudsimulator.entities.cost.Cost
 import com.cloudsimulator.entities.payload.cloudlet.CloudletExecution
 import com.cloudsimulator.entities.time.{TimeSliceInfo, TimeSliceUsage}
 
@@ -10,7 +11,7 @@ case class TimeSharedCloudletScheduler() extends CloudletScheduler {
 
   override def scheduleCloudlets(timeSliceInfo: TimeSliceInfo, mips: Long,
                                  noOfPes: Int,
-                                 cloudlets: Seq[CloudletExecution]): Seq[CloudletExecution] = {
+                                 cloudlets: Seq[CloudletExecution], cost: Cost): Seq[CloudletExecution] = {
 
     val timeSliceForEachCloudlet: Double = timeSliceInfo.slice.toDouble / cloudlets.size
 
@@ -44,13 +45,15 @@ case class TimeSharedCloudletScheduler() extends CloudletScheduler {
         case Some(value) => value
       }
 
+      //cost calculation, append to the previous cost
+      val newCost = cloudlet.cost + timeSliceForEachCloudlet * cost.cloudletExecutionCostPerSec
 
-      CloudletExecution(cloudlet.id,cloudlet.cloudletPayload,
+      CloudletExecution(cloudlet.id, cloudlet.cloudletPayload,
         newTimeSliceUsageInfo,
         cloudlet.delay, cloudlet.dcId,
         cloudlet.hostId, cloudlet.vmId, newExecStartTime, newExecEndTime,
         CloudletPayloadStatus.RUNNING,
-        newRemWorkloadLength, 0)
+        newRemWorkloadLength, newCost)
     })
   }
 }
