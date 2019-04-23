@@ -109,7 +109,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
         dcActor ! CreateHost(host.id, Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
           host.bwProvisioner, host.ramProvisioner, getVmScheduler(host.vmScheduler), host.availableNoOfPes, host.mips,
-          host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch)))
+          host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch,host.cost)))
       })
 
       // Create DataCenter Selection policy actor

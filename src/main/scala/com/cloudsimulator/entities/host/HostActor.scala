@@ -2,6 +2,7 @@ package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Props}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
+import com.cloudsimulator.entities.cost.Cost
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.datacenter.{CanAllocateVmTrue, HostCheckedForRequiredVms, VMPayloadTracker, VmAllocationSuccess}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
@@ -34,7 +35,7 @@ import scala.collection.mutable.ListBuffer
 
 class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
                 ramProvisioner : String, vmScheduler : VmScheduler, var availableNoOfPes : Int, mips: Long,
-                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String)
+                var availableRam : Long, var availableStorage : Long, var availableBw : Double, edgeSwitchName : String, cost:Cost)
   extends Actor with ActorLogging {
 
   private var vmIdToRefMap: Map[Long, String] = Map()

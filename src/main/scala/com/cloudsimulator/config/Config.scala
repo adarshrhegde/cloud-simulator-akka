@@ -1,5 +1,6 @@
 package com.cloudsimulator.config
 
+import com.cloudsimulator.entities.cost.Cost
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.payload.VMPayload
 import pureconfig.error.ConfigReaderFailures
@@ -37,7 +38,7 @@ case class CISConfig(id : Long)
 
 case class HostConfig(id : Long, dataCenterId : Long, hypervisor : String, bwProvisioner : String,
                      ramProvisioner : String, vmScheduler : String, availableNoOfPes : Int, mips: Long,
-                      availableRam : Long, availableStorage : Long, availableBw : Double, edgeSwitch : String)
+                      availableRam : Long, availableStorage : Long, availableBw : Double, edgeSwitch : String, cost: Cost)
 
 
 case class Connection(id : String, connectionType : String)
