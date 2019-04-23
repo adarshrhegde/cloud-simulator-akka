@@ -1,15 +1,16 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.VmAllocationSuccess
-import com.cloudsimulator.entities.host.{AllocateVm, RequestHostResourceStatus}
+import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
+import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 import com.cloudsimulator.utils.ActorUtility
 
 
-class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String]) extends Actor with ActorLogging with Switch {
+class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String],
+                      switchDelay : Int) extends Actor with ActorLogging with Switch {
 
 
   override def receive: Receive = {
@@ -44,6 +45,19 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
       log.info(s"HostActor::EdgeSwitchActor:VmAllocationSuccess")
 
       processPacketUp(vmAllocationSuccess.networkPacketProperties.receiver, vmAllocationSuccess)
+    }
+
+    case checkHostForRequiredVMs: CheckHostForRequiredVMs => {
+      log.info(s"DataCenter::EdgeSwitchActor:CheckHostForRequiredVMs")
+
+      processPacketDown(checkHostForRequiredVMs.networkPacketProperties.receiver, checkHostForRequiredVMs)
+    }
+
+    case hostCheckedForRequiredVms: HostCheckedForRequiredVms => {
+      log.info(s"HostActor::EdgeSwitchActor:HostCheckedForRequiredVms")
+
+      hostCheckedForRequiredVms.cloudletPayload.foreach(payload => payload.delay += switchDelay)
+      processPacketUp(hostCheckedForRequiredVms.networkPacketProperties.receiver, hostCheckedForRequiredVms)
     }
 
   }

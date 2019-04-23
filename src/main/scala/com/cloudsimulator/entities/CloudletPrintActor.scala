@@ -10,7 +10,7 @@ class CloudletPrintActor extends Actor with ActorLogging {
     case PrintCloudletsExectionStatus(cloudletsExecution) => {
       log.info(s"VmActor::CloudletPrintActor:PrintCloudletsExectionStatus")
       cloudletsExecution.foreach(cloudlet => {
-        log.info(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t ${cloudlet.remWorkloadLength} \t ${cloudlet.timeSliceUsageInfo}")
+        log.info(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t ${cloudlet.remWorkloadLength} \t ${cloudlet.timeSliceUsageInfo} \t ${cloudlet.delay}")
       })
     }
 

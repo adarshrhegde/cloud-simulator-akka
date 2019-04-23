@@ -1,21 +1,20 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.entities.datacenter.VmAllocationSuccess
-import com.cloudsimulator.entities.host.{AllocateVm, RequestHostResourceStatus}
+import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
+import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
 
-class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String]) extends Actor with ActorLogging with Switch {
+class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String],
+                           switchDelay : Int) extends Actor with ActorLogging with Switch {
 
   var parentActorPath : String = _
   override def preStart(): Unit = {
 
     parentActorPath = self.path.toStringWithoutAddress
-      .split("/").lastOption.get.dropRight(1).mkString("")
+      .split("/").dropRight(1).mkString("/")
 
-    log.info(s"Self Actor name ${self.path.toStringWithoutAddress}")
-    log.info(s"Parent Actor name $parentActorPath")
   }
 
   override def receive: Receive = {
@@ -23,7 +22,6 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::AggregateSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")
 
-      // forward to host if the host is connected to this switch
       processPacketDown(allocateVm.networkPacketProperties.receiver, allocateVm)
     }
 
@@ -52,6 +50,19 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
       processPacketUp(vmAllocationSuccess.networkPacketProperties.receiver, vmAllocationSuccess)
     }
 
+    case checkHostForRequiredVMs: CheckHostForRequiredVMs => {
+      log.info(s"DataCenter::AggregateSwitchActor:CheckHostForRequiredVMs")
+
+      processPacketDown(checkHostForRequiredVMs.networkPacketProperties.receiver, checkHostForRequiredVMs)
+    }
+
+    case hostCheckedForRequiredVms: HostCheckedForRequiredVms => {
+      log.info(s"HostActor::AggregateSwitchActor:HostCheckedForRequiredVms")
+
+      hostCheckedForRequiredVms.cloudletPayload.foreach(payload => payload.delay += switchDelay)
+      processPacketUp(hostCheckedForRequiredVms.networkPacketProperties.receiver, hostCheckedForRequiredVms)
+    }
+
   }
 
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
@@ -64,7 +75,13 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
       context.actorSelection(destination) ! cloudSimulatorMessage
 
     } else {
+
       // forward to all connections in downstream
+      downstreamEntities.map(entity => context.actorSelection(parentActorPath + s"/$entity"))
+        .foreach(entityActor => {
+
+          entityActor ! cloudSimulatorMessage
+      })
 
     }
 
@@ -73,6 +90,20 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
   override def processPacketUp(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
     // TODO Add delay
-    context.actorSelection(destination) ! cloudSimulatorMessage
+
+    if(upstreamEntities.contains(destination.split("/").lastOption.get)){
+
+      context.actorSelection(destination) ! cloudSimulatorMessage
+
+    } else {
+
+      // forward to all connections in upstream
+      upstreamEntities.map(entity => context.actorSelection(parentActorPath + s"/$entity"))
+        .foreach(entityActor => {
+
+          entityActor ! cloudSimulatorMessage
+        })
+
+    }
   }
 }
