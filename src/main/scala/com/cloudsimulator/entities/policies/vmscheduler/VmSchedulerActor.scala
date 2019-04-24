@@ -79,9 +79,17 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       vmRequirementList.count(vm => vm.vmId == vmRequirement.vmId) match {
 
         case 0 => {
-          vmRequirementList = vmRequirementList :+ vmRequirement
 
-          self ! CheckCanSchedule
+          if(vmRequirement.noOfPes > 0 && vmRequirement.mips > 0) {
+            vmRequirementList = vmRequirementList :+ vmRequirement
+
+            self ! CheckCanSchedule
+
+          } else {
+            // send the TimeSliceCompleted on behalf of the VM when the VM sends empty requirement
+            self ! TimeSliceCompleted(slice)
+          }
+
         }
         case _ => {
 

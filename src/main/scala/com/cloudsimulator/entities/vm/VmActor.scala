@@ -31,7 +31,10 @@ class VmActor(id : Long, userId : Long, mips : Long,
 
     case SendVmRequirement() => {
 
-      sender() ! VmRequirement(id, self, mips, noOfPes)
+      if(currentCloudletsExecSeq.size > 0)
+        sender() ! VmRequirement(id, self, mips, noOfPes)
+      else
+        sender() ! VmRequirement(id, self, 0, 0)
     }
 
     /**
