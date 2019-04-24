@@ -147,9 +147,14 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info("DataCenterActor::HostActor:SendTimeSliceInfo")
 
 
+      if(vmRefList.size > 0) {
+        context.child(ActorUtility.vmScheduler).get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes,
+          availableRam, availableStorage, availableBw))
 
-      context.child(ActorUtility.vmScheduler).get ! ScheduleVms(sendTimeSliceInfo.sliceInfo, vmRefList, HostResource(availableNoOfPes, availableRam,
-      availableStorage, availableBw))
+      } else {
+        // no VMs in the host. Send completion message back
+        sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
+      }
 
     }
 
