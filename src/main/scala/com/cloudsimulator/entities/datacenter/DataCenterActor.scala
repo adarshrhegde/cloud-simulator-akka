@@ -154,17 +154,17 @@ class DataCenterActor(id: Long,
       sender() ! StopProcessing
 
       // handle failed vms
-      if(receiveVmAllocation.vmAllocationResult.failedAllocationVms.size > 0){
+      //if(receiveVmAllocation.vmAllocationResult.failedAllocationVms.size > 0){
 
-        val networkPacketProperties = new NetworkPacketProperties(
-          self.path.toStringWithoutAddress, requestToLBMap.get(receiveVmAllocation.requestId).get)
+      val networkPacketProperties = new NetworkPacketProperties(
+        self.path.toStringWithoutAddress, requestToLBMap.get(receiveVmAllocation.requestId).get)
 
-        // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
-        context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
-          FailedVmCreation(networkPacketProperties, id, receiveVmAllocation.requestId,
-          receiveVmAllocation.vmAllocationResult.failedAllocationVms)
+      // Send list of failed VM Payloads to Loadbalancer to allocate at different DC
+      context.actorSelection(ActorUtility.getActorRef(rootSwitchId)) !
+        FailedVmCreation(networkPacketProperties, id, receiveVmAllocation.requestId,
+        receiveVmAllocation.vmAllocationResult.failedAllocationVms)
 
-      }
+      //}
 
     }
 
