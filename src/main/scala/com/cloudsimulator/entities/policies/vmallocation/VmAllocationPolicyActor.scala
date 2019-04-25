@@ -95,7 +95,8 @@ class VmAllocationPolicyActor(vmAllocationPolicy: VmAllocationPolicy)
       if(receiveHostResourceStatus.requestId == requestId){
         hostResources += (receiveHostResourceStatus.networkPacketProperties.sender -> receiveHostResourceStatus.hostResource)
 
-        self ! StartAllocation
+        if(hostResources.size == hostCount)
+          self ! StartAllocation
       }
     }
 
