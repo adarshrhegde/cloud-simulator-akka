@@ -1,22 +1,26 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.{ActorType, SendCreationConfirmation}
+import com.cloudsimulator.{SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
 import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorType, ActorUtility}
 
 
 class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String],
                       switchDelay : Int) extends Actor with ActorLogging with Switch {
 
 
+  var parentActorPath : String = _
+
   override def preStart(): Unit = {
 
     self ! SendCreationConfirmation(ActorType("SWITCH"))
+
+    parentActorPath = self.path.toStringWithoutAddress
+      .split("/").dropRight(1).mkString("/")
 
   }
   override def receive: Receive = {
@@ -62,6 +66,7 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
     case checkHostForRequiredVMs: CheckHostForRequiredVMs => {
       log.info(s"DataCenter::EdgeSwitchActor:CheckHostForRequiredVMs")
 
+      checkHostForRequiredVMs.cloudletPayloads.foreach(payload => payload.delay += switchDelay)
       processPacketDown(checkHostForRequiredVMs.networkPacketProperties.receiver, checkHostForRequiredVMs)
     }
 
@@ -76,7 +81,6 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
 
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
-    // TODO Add delay
 
     // check if actor name is registered with downstreamConnections
     if(downstreamEntities.contains(destination.split("/").lastOption.get)){
@@ -87,14 +91,19 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
 
   override def processPacketUp(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
-    // TODO Add delay
     if(upstreamEntities.contains(destination.split("/").lastOption.get)){
       context.actorSelection(destination) ! cloudSimulatorMessage
 
     } else {
       // send message to all entities in upstream if destination not in upstream entities
       upstreamEntities.foreach(upstreamEntity =>{
-        context.actorSelection(ActorUtility.getActorRef(upstreamEntity)) ! cloudSimulatorMessage
+
+        upstreamEntity.split("-")(0) match {
+
+          case "aggregate" => context.actorSelection(parentActorPath + s"/$upstreamEntity") ! cloudSimulatorMessage
+          case _ => context.actorSelection(ActorUtility.getActorRef(upstreamEntity)) ! cloudSimulatorMessage
+        }
+
 
       })
     }

@@ -1,7 +1,7 @@
 package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Props}
-import com.cloudsimulator.{ActorType, SendCreationConfirmation}
+import com.cloudsimulator.{ SendCreationConfirmation}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.cost.Cost
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
@@ -13,7 +13,7 @@ import com.cloudsimulator.entities.policies.vmscheduler.{ScheduleVms, VmSchedule
 import com.cloudsimulator.entities.switch.RegisterHost
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.{ScheduleCloudlet, VmActor}
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorType, ActorUtility}
 
 import scala.collection.mutable.ListBuffer
 

@@ -1,11 +1,11 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.{ActorType, SendCreationConfirmation}
+import com.cloudsimulator.{ SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RegisterWithCIS, RequestCreateVms}
 import com.cloudsimulator.entities.{DcRegistration, RootSwitchRegistration}
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorType, ActorUtility}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 

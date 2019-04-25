@@ -16,6 +16,7 @@ object ActorUtility {
   val vmScheduler = "vm-scheduler"
   val cloudletScheduler = "cloudlet-scheduler"
   val edgeSwitch = "edge-"
+  val aggregateSwitch = "aggregate-"
   val cloudletPrintActor ="cloudlet-print-actor"
 
 
@@ -31,8 +32,12 @@ object ActorUtility {
     s"akka://$actorSystemName/user/$simulationActor/$rootSwitch"
   }
 
-  def getEdgeSwitchRefString() : String = {
-    s"akka://$actorSystemName/user/$simulationActor/$edgeSwitch"
+  def getEdgeSwitchRefString(dcName : String) : String = {
+    s"akka://$actorSystemName/user/$simulationActor/$dcName/$edgeSwitch"
+  }
+
+  def getAggregateSwitchRefString(dcName : String) : String = {
+    s"akka://$actorSystemName/user/$simulationActor/$dcName/$aggregateSwitch"
   }
 
   def getHostRefString(dcId: String): String = {

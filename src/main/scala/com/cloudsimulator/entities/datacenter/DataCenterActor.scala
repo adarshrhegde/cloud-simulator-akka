@@ -3,7 +3,7 @@ package com.cloudsimulator.entities.datacenter
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorSelection, Props}
-import com.cloudsimulator.{ActorType, SendCreationConfirmation}
+import com.cloudsimulator.{ SendCreationConfirmation}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
@@ -15,7 +15,7 @@ import com.cloudsimulator.entities.policies.vmallocation._
 import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, NetworkDevice, RootSwitchActor}
 import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
 import com.cloudsimulator.entities.vm.VmActor
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorType, ActorUtility}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
@@ -178,7 +178,8 @@ class DataCenterActor(id: Long,
             createSwitch.upstreamConnections, createSwitch.downstreamConnections, createSwitch.switchDelay)),
             createSwitch.switchType + "-" + createSwitch.switchId)
 
-          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+          if(createSwitch.isConnected)
+            downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
         }
 
         case "aggregate" => {
@@ -187,7 +188,8 @@ class DataCenterActor(id: Long,
             createSwitch.upstreamConnections, createSwitch.downstreamConnections, createSwitch.switchDelay)),
             createSwitch.switchType + "-" + createSwitch.switchId)
 
-          downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
+          if(createSwitch.isConnected)
+            downStreamConnections = downStreamConnections :+ switchActor.path.toStringWithoutAddress
         }
       }
     }
@@ -331,7 +333,7 @@ case class CreateVmAllocationPolicy(vmAllocationPolicy: VmAllocationPolicy) exte
 
 case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocationResult) extends NetworkPacket
 
-case class CreateSwitch(switchType : String, switchId : Long, switchDelay : Int, upstreamConnections : List[String], downstreamConnections: List[String])
+case class CreateSwitch(switchType : String, switchId : Long, switchDelay : Int, isConnected : Boolean,  upstreamConnections : List[String], downstreamConnections: List[String])
 
 case class CheckDCForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload], vmList:List[Long]) extends NetworkPacket
 

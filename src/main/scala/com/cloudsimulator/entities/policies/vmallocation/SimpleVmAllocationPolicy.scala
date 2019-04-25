@@ -27,7 +27,7 @@ class SimpleVmAllocationPolicy extends VmAllocationPolicy {
 
 
         // Check if host can handle vm resources
-        if(vmPayload.numberOfPes < hostResource.availableNoOfPes &&
+        if(!isAllocated && vmPayload.numberOfPes < hostResource.availableNoOfPes &&
           vmPayload.ram < hostResource.availableRam
           && vmPayload.storage < hostResource.availableStorage &&
           vmPayload.bw < hostResource.availableBw){
@@ -41,7 +41,6 @@ class SimpleVmAllocationPolicy extends VmAllocationPolicy {
           // add to vm-host mapping
           vmHostMap += (vmPayload -> hostName)
           isAllocated = true
-
         }
 
       })

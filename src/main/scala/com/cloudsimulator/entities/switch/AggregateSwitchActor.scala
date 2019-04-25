@@ -1,12 +1,12 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
-import com.cloudsimulator.{ActorType, SendCreationConfirmation}
+import com.cloudsimulator.{SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
 import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorType, ActorUtility}
 
 class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String],
                            switchDelay : Int) extends Actor with ActorLogging with Switch {
@@ -63,6 +63,7 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
     case checkHostForRequiredVMs: CheckHostForRequiredVMs => {
       log.info(s"DataCenter::AggregateSwitchActor:CheckHostForRequiredVMs")
 
+      checkHostForRequiredVMs.cloudletPayloads.foreach(payload => payload.delay += switchDelay)
       processPacketDown(checkHostForRequiredVMs.networkPacketProperties.receiver, checkHostForRequiredVMs)
     }
 
@@ -77,7 +78,6 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
 
   override def processPacketDown(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
-    // TODO Add delay
 
     // check if actor name is registered with downstreamConnections
     if(downstreamEntities.contains(destination.split("/").lastOption.get)){
@@ -99,7 +99,6 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
 
   override def processPacketUp(destination: String, cloudSimulatorMessage: NetworkPacket): Unit = {
 
-    // TODO Add delay
 
     if(upstreamEntities.contains(destination.split("/").lastOption.get)){
 

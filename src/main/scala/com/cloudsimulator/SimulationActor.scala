@@ -1,5 +1,6 @@
 package com.cloudsimulator
 
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
@@ -17,7 +18,7 @@ import com.cloudsimulator.entities.policies.vmallocation.{SimpleVmAllocationPoli
 import com.cloudsimulator.entities.policies.vmscheduler.{SpaceSharedVmScheduler, TimeSharedVmScheduler, VmScheduler}
 import com.cloudsimulator.entities.switch.RootSwitchActor
 import com.cloudsimulator.entities.time.TimeActor
-import com.cloudsimulator.utils.ActorUtility
+import com.cloudsimulator.utils.{ActorCount, ActorType, ActorUtility}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
@@ -51,6 +52,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       /**
         * Create root switch, CIS, DataCenters, hosts and policy actors
         */
+      log.info("Started creation of infrastructure actors at " + Calendar.getInstance().getTime)
 
       val rootSwitchNames : List[String] = config.rootSwitchList.map(rootSwitchConfig => {
 
@@ -98,7 +100,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
         dc.switchList.foreach(switch => {
 
-            dcActor ! CreateSwitch(switch.switchType, switch.id, switch.switchDelay,
+            dcActor ! CreateSwitch(switch.switchType, switch.id, switch.switchDelay, switch.isConnected,
               switch.upstreamConnections.map(c => c.id), switch.downstreamConnections.map(c => c.id))
 
             actorCount.switchActorCount += 1
@@ -141,6 +143,9 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
     case vmCreationConfirmation: VMCreationConfirmation => {
 
       log.info(s"LoadBalancerActor::SimulationActor:VMCreationConfirmation:${vmCreationConfirmation.requestId}")
+
+      log.info("Completed VM allocation at " + Calendar.getInstance().getTime)
+
       self ! SendCloudletPayload(config.cloudletPayloadList)
 
     }
@@ -149,6 +154,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
     case sendCloudletPayload: SendCloudletPayload => {
 
       log.info("SimulatorActor::SimulatorActor:SendCloudletPayload")
+
+      log.info("Started Cloudlet assignment at " + Calendar.getInstance().getTime)
       val cloudletStatusUpdated: List[CloudletPayload] = sendCloudletPayload.cloudletPayloadList
         .map(cloudlet => {
           cloudlet.status = CloudletPayloadStatus.SENT
@@ -161,7 +168,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       context.actorOf(Props(new CloudletPrintActor),ActorUtility.cloudletPrintActor)
 
       context.system.scheduler.scheduleOnce(
-        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+        new FiniteDuration(10, TimeUnit.SECONDS), self, StartTimeActor)
 
 
     }
@@ -179,7 +186,9 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       if(actorCount.switchActorCount == 0 && actorCount.dcActorCount == 0
       && actorCount.hostActorCount == 0){
 
-        log.info("Sending VM Workload")
+        log.info("Completed creation of infrastructure actors at " + Calendar.getInstance().getTime)
+
+        log.info("Sending VM Workload at " + Calendar.getInstance().getTime)
         self ! SendVMWorkload(config.vmPayloadList)
 
       } else {
@@ -222,27 +231,9 @@ final case class Start()
 
 final case class StartTimeActor()
 
-// Used for maintaining count of actors, to avoid using delays
-class ActorCount {
-
-  var hostActorCount : Int = 0
-
-  var switchActorCount : Int = 0
-
-  var dcActorCount : Int = 0
-}
-
 
 case class SendCreationConfirmation(actorType : ActorType.Value)
 
-object ActorType extends Enumeration {
-
-  type ActorType = Value
-  val DATACENTER, HOST, SWITCH = Value
-
-  def apply(actorType: String): ActorType.Value =
-    ActorType.withName(actorType)
-}
 
 
 case class CheckCanSendVMWorkload()
