@@ -1,10 +1,12 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
+import com.cloudsimulator.{ActorType, SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
 import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
 import com.cloudsimulator.entities.policies.vmallocation.ReceiveHostResourceStatus
+import com.cloudsimulator.utils.ActorUtility
 
 class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities : List[String],
                            switchDelay : Int) extends Actor with ActorLogging with Switch {
@@ -12,12 +14,20 @@ class AggregateSwitchActor(upstreamEntities : List[String], downstreamEntities :
   var parentActorPath : String = _
   override def preStart(): Unit = {
 
+    self ! SendCreationConfirmation(ActorType("SWITCH"))
+
     parentActorPath = self.path.toStringWithoutAddress
       .split("/").dropRight(1).mkString("/")
 
   }
 
   override def receive: Receive = {
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+      log.info("AggregateSwitchActor::AggregateSwitchActor:SendCreationConfirmation")
+
+      context.actorSelection(ActorUtility.getSimulatorRefString) ! sendCreationConfirmation
+    }
 
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::AggregateSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")

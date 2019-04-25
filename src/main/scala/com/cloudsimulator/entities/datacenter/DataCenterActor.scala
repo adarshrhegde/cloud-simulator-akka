@@ -3,6 +3,7 @@ package com.cloudsimulator.entities.datacenter
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorSelection, Props}
+import com.cloudsimulator.{ActorType, SendCreationConfirmation}
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
 import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
@@ -54,13 +55,20 @@ class DataCenterActor(id: Long,
 
   override def preStart(): Unit = {
 
+    self ! SendCreationConfirmation(ActorType("DATACENTER"))
     // Register self with CIS actor on startup
-    //context.system.scheduler.scheduleOnce(new FiniteDuration(1, TimeUnit.SECONDS), self,RegisterWithCIS)
     self ! RegisterWithCIS
 
   }
 
   override def receive: Receive = {
+
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+      log.info("DataCenterActor::DataCenterActor:SendCreationConfirmation")
+
+      context.actorSelection(ActorUtility.getSimulatorRefString) ! sendCreationConfirmation
+    }
 
     case CreateHost(hostId, hostProps : Props) => {
       log.info("SimulationActor::DataCenterActor:CreateHost")

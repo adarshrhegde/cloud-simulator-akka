@@ -67,6 +67,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         })
 
         context.actorOf(Props(new RootSwitchActor(rootSwitchConfig.id, dcConnections, rootSwitchConfig.switchDelay)), rootSwitchName)
+        actorCount.switchActorCount += 1
 
         rootSwitchName
       })
@@ -89,18 +90,26 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         val dcActor = context.actorOf(Props(new DataCenterActor(dc.id, dc.location, deviceToSwitchMapping(s"dc-${dc.id}"), Seq())), "dc-" + dc.id)
         dcList += dcActor.path.toStringWithoutAddress
 
+        actorCount.dcActorCount += 1
+
         val vmAllocationPolicy = new SimpleVmAllocationPolicy()
 
         dcActor ! CreateVmAllocationPolicy(vmAllocationPolicy)
 
         dc.switchList.foreach(switch => {
+
             dcActor ! CreateSwitch(switch.switchType, switch.id, switch.switchDelay,
               switch.upstreamConnections.map(c => c.id), switch.downstreamConnections.map(c => c.id))
+
+            actorCount.switchActorCount += 1
           })
 
       })
 
       log.info("DC List:: " + dcList.toList)
+
+      // Create DataCenter Selection policy actor
+      context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")
 
       config.hostList.foreach(host => {
 
@@ -110,19 +119,13 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
         dcActor ! CreateHost(host.id, Props(new HostActor(host.id, host.dataCenterId, host.hypervisor,
           host.bwProvisioner, host.ramProvisioner, getVmScheduler(host.vmScheduler), host.availableNoOfPes, host.mips,
           host.availableRam, host.availableStorage, host.availableBw, host.edgeSwitch,host.cost)))
+
+        actorCount.hostActorCount += 1
       })
 
-      // Create DataCenter Selection policy actor
-      context.actorOf(DataCenterSelectionPolicyActor.props(new SimpleDataCenterSelectionPolicy), "datacenter-selection-policy")
-
-      // Create VMs and assign to hosts
-      /*config.vmPayloadList.foreach(vm => {
-        println(vm)
-      })*/
-
-      // Schedule message after 5s to ensure all actors are created
       context.system.scheduler.scheduleOnce(
-        new FiniteDuration(5, TimeUnit.SECONDS), self, SendVMWorkload(config.vmPayloadList))
+        new FiniteDuration(5, TimeUnit.SECONDS), self, CheckCanSendVMWorkload)
+
 
     }
 
@@ -133,10 +136,13 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       context.child("loadBalancer").get ! VMRequest(1, sendVMWorkload.vmPayloadList)
 
 
-      context.system.scheduler.scheduleOnce(
-        new FiniteDuration(5, TimeUnit.SECONDS), self, SendCloudletPayload(config.cloudletPayloadList))
-//      context.system.scheduler.scheduleOnce(
-//        new FiniteDuration(5, TimeUnit.SECONDS), self, StartTimeActor)
+    }
+
+    case vmCreationConfirmation: VMCreationConfirmation => {
+
+      log.info(s"LoadBalancerActor::SimulationActor:VMCreationConfirmation:${vmCreationConfirmation.requestId}")
+      self ! SendCloudletPayload(config.cloudletPayloadList)
+
     }
 
     //TODO should be sent when all the VMs are created and not after 5 seconds.
@@ -167,6 +173,33 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
       context.actorOf(Props(new TimeActor(99, 100)), "time-actor")
 
     }
+
+    case CheckCanSendVMWorkload => {
+
+      if(actorCount.switchActorCount == 0 && actorCount.dcActorCount == 0
+      && actorCount.hostActorCount == 0){
+
+        log.info("Sending VM Workload")
+        self ! SendVMWorkload(config.vmPayloadList)
+
+      } else {
+
+        log.info(s"Waiting for infrastructure to be setup. Current response count $actorCount")
+        context.system.scheduler.scheduleOnce(
+          new FiniteDuration(5, TimeUnit.SECONDS), self, CheckCanSendVMWorkload)
+      }
+
+    }
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+
+      sendCreationConfirmation.actorType match {
+        case ActorType.DATACENTER => actorCount.dcActorCount -= 1
+        case ActorType.HOST => actorCount.hostActorCount -= 1
+        case ActorType.SWITCH => actorCount.switchActorCount -= 1
+        case _ => log.info(s"No such actor type ${sendCreationConfirmation.actorType}")
+      }
+    }
   }
 
   def getVmScheduler(vmSchedulerType : String) : VmScheduler = {
@@ -192,12 +225,26 @@ final case class StartTimeActor()
 // Used for maintaining count of actors, to avoid using delays
 class ActorCount {
 
-  var actorCount : Int = 0
-  var actorCreatedCount : Int = 0
+  var hostActorCount : Int = 0
 
-  var vmActorCount : Int = 0
-  var vmActorCreatedCount : Int = 0
+  var switchActorCount : Int = 0
+
+  var dcActorCount : Int = 0
 }
 
 
+case class SendCreationConfirmation(actorType : ActorType.Value)
 
+object ActorType extends Enumeration {
+
+  type ActorType = Value
+  val DATACENTER, HOST, SWITCH = Value
+
+  def apply(actorType: String): ActorType.Value =
+    ActorType.withName(actorType)
+}
+
+
+case class CheckCanSendVMWorkload()
+
+case class VMCreationConfirmation(requestId : Long)

@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.loadbalancer
 
 import akka.actor.{Actor, ActorLogging, ActorSelection}
+import com.cloudsimulator.VMCreationConfirmation
 import com.cloudsimulator.cloudsimutils.RequestStatus
 import com.cloudsimulator.entities.RequestDataCenterList
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RequestCreateVms}
@@ -83,8 +84,16 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
 
       dc match {
 
-        case None => log.info(s"No DataCenter can be selected to complete request ID $id" +
-          s", following payloads are un-allocated $payloads")
+        case None => {
+
+          log.info(s"No DataCenter can be selected to complete request ID $id" +
+            s", following payloads are un-allocated $payloads")
+
+          val simActor: ActorSelection = context.actorSelection(ActorUtility.getSimulatorRefString())
+
+          simActor ! VMCreationConfirmation(id)
+
+        }
 
         case Some(dcId) => {
 
@@ -138,9 +147,21 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
       requestIdToCheckedDcMap = requestIdToCheckedDcMap + (failedVmCreation.requestId ->
         (requestIdToCheckedDcMap.getOrElse(failedVmCreation.requestId, Seq()) ++ Seq(failedVmCreation.dcId)))
 
-      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
-      // Re-Start the allocation process for the failed Vms
-      cis ! RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
+      if(failedVmCreation.failedVmPayloads.size == 0){
+
+        requestIdMap=requestIdMap + (failedVmCreation.requestId -> RequestStatus("COMPLETED"))
+        val simActor: ActorSelection = context.actorSelection(ActorUtility.getSimulatorRefString())
+
+        simActor ! VMCreationConfirmation(failedVmCreation.requestId)
+
+      } else {
+
+        val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+        // Re-Start the allocation process for the failed Vms
+        cis ! RequestDataCenterList(failedVmCreation.requestId, failedVmCreation.failedVmPayloads)
+
+      }
+
 
     }
 

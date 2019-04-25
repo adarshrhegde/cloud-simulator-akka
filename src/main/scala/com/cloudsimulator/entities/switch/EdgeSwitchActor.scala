@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
+import com.cloudsimulator.{ActorType, SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{HostCheckedForRequiredVms, VmAllocationSuccess}
 import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs, RequestHostResourceStatus}
 import com.cloudsimulator.entities.network.NetworkPacket
@@ -13,7 +14,18 @@ class EdgeSwitchActor(upstreamEntities : List[String], downstreamEntities : List
                       switchDelay : Int) extends Actor with ActorLogging with Switch {
 
 
+  override def preStart(): Unit = {
+
+    self ! SendCreationConfirmation(ActorType("SWITCH"))
+
+  }
   override def receive: Receive = {
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+      log.info("EdgeSwitchActor::EdgeSwitchActor:SendCreationConfirmation")
+
+      context.actorSelection(ActorUtility.getSimulatorRefString) ! sendCreationConfirmation
+    }
 
     case allocateVm: AllocateVm => {
       log.info(s"DataCenterActor::EdgeSwitchActor:AllocateVm-${allocateVm.networkPacketProperties.receiver}")

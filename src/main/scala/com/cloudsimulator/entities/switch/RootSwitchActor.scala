@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.switch
 
 import akka.actor.{Actor, ActorLogging}
+import com.cloudsimulator.{ActorType, SendCreationConfirmation}
 import com.cloudsimulator.entities.datacenter.{CheckDCForRequiredVMs, RegisterWithCIS, RequestCreateVms}
 import com.cloudsimulator.entities.{DcRegistration, RootSwitchRegistration}
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
@@ -16,10 +17,19 @@ import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 class RootSwitchActor(id : Long, downStreamEntities: List[String], switchDelay : Int) extends Actor with ActorLogging with Switch {
 
   override def preStart(): Unit = {
+
+    self ! SendCreationConfirmation(ActorType("SWITCH"))
+
     self ! RegisterWithCIS
   }
 
   override def receive: Receive = {
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+      log.info("RootSwitchActor::RootSwitchActor:SendCreationConfirmation")
+
+      context.actorSelection(ActorUtility.getSimulatorRefString) ! sendCreationConfirmation
+    }
 
     case RegisterWithCIS => {
       log.info("RootSwitchActor::RootSwitchActor:RegisterWithCIS")

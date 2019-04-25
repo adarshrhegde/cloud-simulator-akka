@@ -1,6 +1,7 @@
 package com.cloudsimulator.entities.host
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Props}
+import com.cloudsimulator.{ActorType, SendCreationConfirmation}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.cost.Cost
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
@@ -44,12 +45,20 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
   override def preStart(): Unit = {
 
+    self ! SendCreationConfirmation(ActorType("HOST"))
+
     // Register self with Edge switch
     self ! CreateVmScheduler
 
   }
 
   override def receive: Receive = {
+
+    case sendCreationConfirmation: SendCreationConfirmation => {
+      log.info("HostActor::HostActor:SendCreationConfirmation")
+
+      context.actorSelection(ActorUtility.getSimulatorRefString) ! sendCreationConfirmation
+    }
 
     case CreateVmScheduler => {
       log.info(s"HostActor::HostActor:CreateVmScheduler:$id")

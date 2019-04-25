@@ -39,4 +39,8 @@ object ActorUtility {
     s"akka://$actorSystemName/user/$simulationActor/$dc-$dcId/$host-"
   }
 
+  def getSimulatorRefString() : String = {
+    s"akka://$actorSystemName/user/$simulationActor"
+  }
+
 }
