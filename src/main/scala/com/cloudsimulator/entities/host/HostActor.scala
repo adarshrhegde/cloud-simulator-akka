@@ -126,27 +126,21 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       log.info(s"CheckHostForRequiredVMs:$vmIdToRefMap")
       log.debug(s"CheckHostForRequiredVMs:CloudletPayload:$checkHostForRequiredVMs.cloudletPayloads")
       //if vm required by cloudlet is present, then send the msg and update cloudlet's status
-      val cloudletsLeft: List[CloudletPayload] = checkHostForRequiredVMs.cloudletPayloads
+      val cloudlets: List[CloudletPayload] = checkHostForRequiredVMs.cloudletPayloads
         .map(cloudlet => {
-          if (/*cloudlet.status.equals(CloudletPayloadStatus.SENT) &&*/
-            vmIdToRefMap.contains(cloudlet.vmId)) {
-
-            //TODO check the resources for cloudlet and VM are compatible
-
-//            cloudlet.status = CloudletPayloadStatus.ASSIGNED_TO_VM
+          if (vmIdToRefMap.contains(cloudlet.vmId)) {
             cloudlet.hostId = id
             cloudlet.dcId = dataCenterId
-            // TODO change this to go through switches, host
-            context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(checkHostForRequiredVMs.id, cloudlet)
+            context.actorSelection(vmIdToRefMap(cloudlet.vmId)) ! ScheduleCloudlet(checkHostForRequiredVMs.id, CloudletPayload(cloudlet,dataCenterId,id))
           }
           cloudlet
-        }).filter(cloudlet=>{!vmIdToRefMap.contains(cloudlet.vmId)})
+        }).filter(cloudlet=>{vmIdToRefMap.contains(cloudlet.vmId)})
 
       //send response(new cloudlets) back to the DC
       checkHostForRequiredVMs.networkPacketProperties.swapSenderReceiver()
 
       sender() ! HostCheckedForRequiredVms(checkHostForRequiredVMs.networkPacketProperties,
-        checkHostForRequiredVMs.id, cloudletsLeft)
+        checkHostForRequiredVMs.id, cloudlets)
     }
 
     /**
@@ -205,6 +199,6 @@ case class RequestHostResourceStatus(override val networkPacketProperties: Netwo
 case class HostResource(var availableNoOfPes : Int, var availableRam : Long,
                         var availableStorage : Long, var availableBw : Double)  extends NetworkPacket
 
-case class CheckHostForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload], vmList: List[Long]) extends NetworkPacket
+case class CheckHostForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload]) extends NetworkPacket
 
 case class CreateVmScheduler()

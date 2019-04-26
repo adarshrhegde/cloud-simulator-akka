@@ -10,8 +10,8 @@ import com.cloudsimulator.utils.ActorUtility
 class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 
   var timeSliceId: Long = -1
-  val seqOfSystemTime: Seq[TimeStartEnd] = Seq()
-  val mapIdToDcCountRem: Map[Long, Long] = Map()
+  var seqOfSystemTime: Seq[TimeStartEnd] = Seq()
+  var mapIdToDcCountRem: Map[Long, Long] = Map()
   var startExecTimeForTimeSlice: Long = Calendar.getInstance().getTimeInMillis
 
   var dcSet : Set[Long] = Set()
@@ -56,7 +56,7 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       log.info("TimeActor::TimeActor:SendTimeSliceInfo")
 
       timeSliceId+=1
-      mapIdToDcCountRem + (timeSliceId -> dcSet.size)
+      mapIdToDcCountRem=mapIdToDcCountRem + (timeSliceId -> dcSet.size)
       startExecTimeForTimeSlice = Calendar.getInstance().getTimeInMillis
 
       dcSet.map(dc => context.actorSelection(ActorUtility
@@ -75,21 +75,23 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       * Else it decrements the count of the remaining responses from the DCs.
       */
     case timeSliceCompleted: TimeSliceCompleted=>{
-      log.info("DataCenterActor::TimeActor:TimeSliceCompleted")
+      log.info(s"DataCenterActor::TimeActor:TimeSliceCompleted:$mapIdToDcCountRem")
 
-      val newCount:Option[Long]=mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
 
-      newCount.filter(_==0).foreach(_ => {
+      mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).foreach(count => mapIdToDcCountRem=mapIdToDcCountRem +
+        (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
+      log.info(s"TimeActor:TimeSliceCompleted:Outside")
+
+      mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).filter(_==0).foreach(value => {
 //        self ! TimeSliceCompleted(
 //        timeSliceCompleted.timeSliceInfo)
-
-        seqOfSystemTime +: Seq(TimeStartEnd(timeSliceCompleted.timeSliceInfo
-          .sliceStartSysTime,Calendar.getInstance().getTimeInMillis))
+        log.info(s"TimeActor:TimeSliceCompleted:Eq0:$value")
+        seqOfSystemTime=seqOfSystemTime :+ TimeStartEnd(timeSliceCompleted.timeSliceInfo
+          .sliceStartSysTime,Calendar.getInstance().getTimeInMillis)
 
         self ! RequestDataCenterList()
       })
-      newCount.filter(_!=0).map(count => mapIdToDcCountRem +
-        (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
+
 
     }
 

@@ -117,7 +117,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       })
 
       newCount.filter(_==0).foreach(_ => {
-        log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is 0")
+        log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is 0 send up")
         context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
       })
 

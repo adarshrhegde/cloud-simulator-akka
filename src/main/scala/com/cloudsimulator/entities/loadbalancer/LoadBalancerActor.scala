@@ -35,7 +35,7 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
 
       requestIdMap=requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
-      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef(ActorUtility.cis))
 
       //      val rootSwitchActor = context.actorSelection(ActorUtility.getActorRef(rootSwitchId))
       // Request CIS to send DataCenter list
@@ -50,7 +50,7 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
       log.info(s"User::LoadBalancerActor:VMRequest:$id")
       requestIdMap = requestIdMap + (id -> RequestStatus("IN_PROGRESS"))
 
-      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef("CIS"))
+      val cis: ActorSelection = context.actorSelection(ActorUtility.getActorRef(ActorUtility.cis))
 
       // Request CIS to send DataCenter list
       cis ! RequestDataCenterList(id, vmPayloads)
@@ -121,9 +121,8 @@ class LoadBalancerActor(rootSwitchIds: List[String]) extends Actor with ActorLog
                 val cloudletPayload=payloads.map(_.asInstanceOf[CloudletPayload])
                 val vmList:List[Long]=cloudletPayload.map(_.vmId)
                 //send the cloudlet data to the dc and it takes the necessary steps
-                //TODO vmList can be removed
 
-                rootSwitchActor ! CheckDCForRequiredVMs(networkPacketProperties, id,cloudletPayload, vmList)
+                rootSwitchActor ! CheckDCForRequiredVMs(networkPacketProperties, id,cloudletPayload)
               }
             })
 

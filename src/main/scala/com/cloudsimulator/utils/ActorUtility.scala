@@ -6,7 +6,7 @@ object ActorUtility {
   //  val rootPath = "akka://CloudSimRM/user/"
   val actorSystemName = "Cloud-System"
   val simulationActor = "SimulationActor"
-  val cis = "cis"
+  val cis = "CIS"
   val switch = "switch-"
   val dc = "dc-"
   val host = "host"
