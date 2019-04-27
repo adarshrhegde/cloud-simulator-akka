@@ -55,9 +55,10 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       * If true, perform VM scheduling
       */
     case CheckCanSchedule => {
-
+      log.info(s"VmSchedulerActor::VmActor:CheckCanSchedule")
+      log.info(s"vmActorPaths:$vmActorPaths,vmRequirementList:$vmRequirementList")
       if(vmActorPaths.size == vmRequirementList.size) {
-
+        log.info(s"VmSchedulerActor::VmActor:CheckCanSchedule:SizeCheck")
         // Invoke injected VM scheduling logic
         val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList, hostResource)
 
@@ -118,6 +119,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
       newCount.filter(_==0).foreach(_ => {
         log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is 0 send up")
+        vmRequirementList=Seq()
+        vmActorPaths=Seq()
         context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
       })
 

@@ -177,7 +177,7 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
       log.info("SimulationActor::SimulationActor:StartTimeActor")
 
-      context.actorOf(Props(new TimeActor(99, 100)), "time-actor")
+      context.actorOf(Props(new TimeActor(99, 100)), ActorUtility.timeActor)
 
     }
 

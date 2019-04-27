@@ -1,6 +1,6 @@
 package com.cloudsimulator.entities.vm
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, PoisonPill}
 import com.cloudsimulator.cloudsimutils.CloudletPayloadStatus
 import com.cloudsimulator.entities.PrintCloudletsExectionStatus
 import com.cloudsimulator.entities.cost.Cost
@@ -62,6 +62,12 @@ class VmActor(id : Long, userId : Long, mips : Long,
 
       context.system.actorSelection(ActorUtility.getActorRef(ActorUtility.cloudletPrintActor)) ! PrintCloudletsExectionStatus(currentCloudletsExecSeq)
       sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
+
+      if(currentCloudletsExecSeq.count(_.remWorkloadLength > 0)==0){
+        log.info(s"Poison pill for the VmActor:$id")
+        //TODO poison pill
+        self ! PoisonPill
+      }
     }
   }
 

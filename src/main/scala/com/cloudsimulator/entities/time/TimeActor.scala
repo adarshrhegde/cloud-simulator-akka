@@ -2,7 +2,7 @@ package com.cloudsimulator.entities.time
 
 import java.util.Calendar
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, ActorSystem}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.{TimeActorRequestDataCenterList, TimeActorRequestRootSwitchList}
 import com.cloudsimulator.utils.ActorUtility
@@ -62,7 +62,9 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       dcSet.map(dc => context.actorSelection(ActorUtility
         .getDcRefString() + s"$dc"))foreach(dcActor => {
 
+
         dcActor ! SendTimeSliceInfo(TimeSliceInfo(timeSliceId, timeSlice, startExecTimeForTimeSlice))
+
 
       })
       timeSliceId = timeSliceId + 1
@@ -95,6 +97,11 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
 
     }
 
+    case SimulationCompleted=>{
+      log.info(s"CloudPrintActor::TimeActor:SimulationCompleted")
+      context.system.terminate()
+    }
+
     case _ => {
 
     }
@@ -111,3 +118,5 @@ case class SendTimeSliceInfo(sliceInfo: TimeSliceInfo)
 case class TimeSliceCompleted(timeSliceInfo:TimeSliceInfo)
 
 case class TimeActorReceiveRootSwitchList(rootSwitchList: Seq[Long])
+
+case class SimulationCompleted()
