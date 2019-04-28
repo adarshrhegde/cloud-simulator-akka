@@ -2,9 +2,8 @@ package com.cloudsimulator.entities.time
 
 import java.util.Calendar
 
-import akka.actor.{Actor, ActorLogging, ActorSystem}
-import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
-import com.cloudsimulator.entities.{TimeActorRequestDataCenterList, TimeActorRequestRootSwitchList}
+import akka.actor.{Actor, ActorLogging}
+import com.cloudsimulator.entities.TimeActorRequestDataCenterList
 import com.cloudsimulator.utils.ActorUtility
 
 class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
@@ -80,13 +79,12 @@ class TimeActor(id: Long, timeSlice: Long) extends Actor with ActorLogging {
       log.info(s"DataCenterActor::TimeActor:TimeSliceCompleted:$mapIdToDcCountRem")
 
 
-      mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).foreach(count => mapIdToDcCountRem=mapIdToDcCountRem +
+      mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId)
+        .foreach(count => mapIdToDcCountRem=mapIdToDcCountRem +
         (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
       log.info(s"TimeActor:TimeSliceCompleted:Outside")
 
       mapIdToDcCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).filter(_==0).foreach(value => {
-//        self ! TimeSliceCompleted(
-//        timeSliceCompleted.timeSliceInfo)
         log.info(s"TimeActor:TimeSliceCompleted:Eq0:$value")
         seqOfSystemTime=seqOfSystemTime :+ TimeStartEnd(timeSliceCompleted.timeSliceInfo
           .sliceStartSysTime,Calendar.getInstance().getTimeInMillis)

@@ -1,24 +1,20 @@
 package com.cloudsimulator.entities.datacenter
 
-import java.util.concurrent.TimeUnit
-
-import akka.actor.{Actor, ActorLogging, ActorSelection, Props}
-import com.cloudsimulator.{ SendCreationConfirmation}
+import akka.actor.{Actor, ActorLogging, Props}
+import com.cloudsimulator.SendCreationConfirmation
 import com.cloudsimulator.cloudsimutils.VMPayloadStatus
 import com.cloudsimulator.entities.DcRegistration
-import com.cloudsimulator.entities.host.{AllocateVm, CanAllocateVm, CheckHostForRequiredVMs, HostActor}
+import com.cloudsimulator.entities.host.{AllocateVm, CheckHostForRequiredVMs}
 import com.cloudsimulator.entities.loadbalancer.{FailedVmCreation, ReceiveRemainingCloudletsFromDC}
 import com.cloudsimulator.entities.network.{NetworkPacket, NetworkPacketProperties}
 import com.cloudsimulator.entities.payload.VMPayload
 import com.cloudsimulator.entities.payload.cloudlet.CloudletPayload
 import com.cloudsimulator.entities.policies.vmallocation._
-import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor, NetworkDevice, RootSwitchActor}
-import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted, TimeSliceInfo}
-import com.cloudsimulator.entities.vm.VmActor
+import com.cloudsimulator.entities.switch.{AggregateSwitchActor, EdgeSwitchActor}
+import com.cloudsimulator.entities.time.{SendTimeSliceInfo, TimeSliceCompleted}
 import com.cloudsimulator.utils.{ActorType, ActorUtility}
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.FiniteDuration
 
 /**
   * DataCenter Actor
@@ -31,8 +27,6 @@ import scala.concurrent.duration.FiniteDuration
 class DataCenterActor(id: Long,
                       location: String, rootSwitchId: String, var downStreamConnections : Seq[String])
   extends Actor with ActorLogging {
-
-  import context._
 
   private val vmPayloadTrackerList : ListBuffer[VMPayloadTracker] = ListBuffer()
 
@@ -300,15 +294,17 @@ class DataCenterActor(id: Long,
       */
     case timeSliceCompleted: TimeSliceCompleted =>{
       log.info("HostActor::DataCenterActor:TimeSliceCompleted")
-      val newCount:Option[Long]=mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(_-1)
 
-      newCount.filter(_==0)
+      mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId)
+        .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +
+          (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
+
+      mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId)
+        .filter(_==0)
         .foreach(_ => context.actorSelection(ActorUtility.getActorRef("time-actor")) !
           TimeSliceCompleted(timeSliceCompleted.timeSliceInfo))
 
-      newCount.filter(_!=0)
-        .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +
-          (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
+
     }
 
 
@@ -337,7 +333,5 @@ case class ReceiveVmAllocation(requestId : Long, vmAllocationResult: VmAllocatio
 case class CreateSwitch(switchType : String, switchId : Long, switchDelay : Int, isConnected : Boolean,  upstreamConnections : List[String], downstreamConnections: List[String])
 
 case class CheckDCForRequiredVMs(override val networkPacketProperties: NetworkPacketProperties, id: Long, cloudletPayloads: List[CloudletPayload]) extends NetworkPacket
-
-//case class CreateCloudletAllocationPolicyActor(id:Long,cloudletAssignmentPolicy:CloudletAssignmentPolicy)
 
 case class HostCheckedForRequiredVms(override val networkPacketProperties: NetworkPacketProperties, reqId:Long, cloudletPayload: List[CloudletPayload]) extends NetworkPacket
