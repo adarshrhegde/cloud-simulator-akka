@@ -24,6 +24,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
   var mapSliceIdToVmCountRem: Map[Long, Long] = Map()
 
+  private var sliceToHasScheduledMap : Map[Long, Boolean] = Map()
+
   override def receive: Receive = {
 
 
@@ -39,6 +41,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
       slice = scheduleVms.slice
       hostResource = scheduleVms.hostResource
+
+      sliceToHasScheduledMap = sliceToHasScheduledMap + (slice.sliceId -> false)
 
       //count for time-slices sent to VMs
       mapSliceIdToVmCountRem=mapSliceIdToVmCountRem + (slice.sliceId -> scheduleVms.vmList.size)
@@ -56,8 +60,10 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       */
     case CheckCanSchedule => {
 
-      if(vmActorPaths.size == vmRequirementList.size) {
+      if(!sliceToHasScheduledMap.getOrElse(slice.sliceId, true) &&
+        vmActorPaths.size == vmRequirementList.size) {
 
+        sliceToHasScheduledMap = sliceToHasScheduledMap + (slice.sliceId -> true)
         // Invoke injected VM scheduling logic
         val assignment : Seq[SliceAssignment] = vmScheduler.scheduleVms(slice.slice, vmRequirementList, hostResource)
 
@@ -83,12 +89,18 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
           if(vmRequirement.noOfPes > 0 && vmRequirement.mips > 0) {
             vmRequirementList = vmRequirementList :+ vmRequirement
 
-            self ! CheckCanSchedule
 
           } else {
+
+            //Remove Vm from vmActorPaths list
+            vmActorPaths = vmActorPaths.filter(actorRef => actorRef != sender())
+
             // send the TimeSliceCompleted on behalf of the VM when the VM sends empty requirement
             self ! TimeSliceCompleted(slice)
           }
+
+          // check can the VmScheduler perform scheduling
+          self ! CheckCanSchedule
 
         }
         case _ => {
