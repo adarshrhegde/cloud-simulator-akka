@@ -26,6 +26,8 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
 
   private var sliceToHasScheduledMap : Map[Long, Boolean] = Map()
 
+  var continueSimulation:Boolean = false
+
   override def receive: Receive = {
 
 
@@ -34,6 +36,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
       * Request to schedule the Vms on the host for the time slice
       */
     case scheduleVms: ScheduleVms => {
+      continueSimulation=false
 
       log.info("HostActor::VmSchedulerActor:ScheduleVMs")
 
@@ -61,6 +64,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
     case CheckCanSchedule => {
       log.info(s"VmSchedulerActor::VmActor:CheckCanSchedule")
       log.info(s"vmActorPaths:$vmActorPaths,vmRequirementList:$vmRequirementList")
+      continueSimulation=false
 
       if(!sliceToHasScheduledMap.getOrElse(slice.sliceId, true) &&
         vmRequirementList.size > 0 &&
@@ -99,7 +103,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
             vmActorPaths = vmActorPaths.filter(actorRef => actorRef != sender())
 
             // send the TimeSliceCompleted on behalf of the VM when the VM sends empty requirement
-            self ! TimeSliceCompleted(slice)
+            self ! TimeSliceCompleted(slice,continueSimulation = false)
           }
 
           // check can the VmScheduler perform scheduling
@@ -122,6 +126,9 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
     case timeSliceCompleted: TimeSliceCompleted=>{
       log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted:timeSlotId:${timeSliceCompleted.timeSliceInfo.sliceId}")
 
+      if(timeSliceCompleted.continueSimulation){
+        continueSimulation=timeSliceCompleted.continueSimulation
+      }
 
       val newCount:Option[Long]=mapSliceIdToVmCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId).map(count=>{
         log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is ${count-1}")
@@ -135,7 +142,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
         log.info(s"VmActor::VmSchedulerActor:TimeSliceCompleted: Count is 0 send up")
         vmRequirementList=Seq()
         vmActorPaths=Seq()
-        context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
+        context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo,continueSimulation)
       })
 
     }

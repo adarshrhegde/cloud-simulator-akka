@@ -13,7 +13,7 @@ case class CloudletExecution(id: Long,
                              execEndTime: Long,
                              status: Int,
                              remWorkloadLength: Double,
+                             actualWorkloadLength:Double,
                              cost: Double
                             )
 
-// TODO cost for RAM, storage, MIPS

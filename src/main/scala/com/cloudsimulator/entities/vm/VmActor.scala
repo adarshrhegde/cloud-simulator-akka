@@ -61,19 +61,23 @@ class VmActor(id : Long, userId : Long, mips : Long,
       log.info(s"VmScheduler::VmActor:SendTimeSliceInfo:cloudletsExecuted:$currentCloudletsExecSeq")
 
       context.system.actorSelection(ActorUtility.getActorRef(ActorUtility.cloudletPrintActor)) ! PrintCloudletsExectionStatus(currentCloudletsExecSeq)
-      sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
 
-      if(currentCloudletsExecSeq.count(_.remWorkloadLength > 0)==0){
-        log.info(s"Poison pill for the VmActor:$id")
-        //TODO poison pill
-        self ! PoisonPill
+
+      if(currentCloudletsExecSeq.isEmpty || currentCloudletsExecSeq.count(_.remWorkloadLength > 0)==0){
+//        log.info(s"Poison pill for the VmActor:$id")
+
+//        self ! PoisonPill
+        sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo,false)
+      }
+      else{
+        sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo,true)
       }
     }
   }
 
   def convertCloudletPayLoadToCloudletExecutionList(cloudlet: CloudletPayload): CloudletExecution ={
 
-      CloudletExecution(cloudlet.payloadId,cloudlet,Seq(),cloudlet.delay,cloudlet.dcId,cloudlet.hostId,cloudlet.vmId,-1,-1,CloudletPayloadStatus.ASSIGNED_TO_VM,cloudlet.workloadLength,cloudlet.cost)
+      CloudletExecution(cloudlet.payloadId,cloudlet,Seq(),cloudlet.delay,cloudlet.dcId,cloudlet.hostId,cloudlet.vmId,-1,-1,CloudletPayloadStatus.ASSIGNED_TO_VM,cloudlet.workloadLength,cloudlet.workloadLength,cloudlet.cost)
 
   }
 }

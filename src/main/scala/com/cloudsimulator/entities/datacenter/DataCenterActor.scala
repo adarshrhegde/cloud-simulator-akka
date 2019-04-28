@@ -47,6 +47,9 @@ class DataCenterActor(id: Long,
 
   var mapSliceIdToHostCountRem: Map[Long, Long] = Map()
 
+  var continueSimulation:Boolean = false
+
+
   override def preStart(): Unit = {
 
     self ! SendCreationConfirmation(ActorType("DATACENTER"))
@@ -271,11 +274,14 @@ class DataCenterActor(id: Long,
       */
     case sendTimeSliceInfo: SendTimeSliceInfo => {
 
+
+      continueSimulation=false
       if(mapSliceIdToHostCountRem.contains(sendTimeSliceInfo.sliceInfo.sliceId)){
         log.info(s"Time Slice ${sendTimeSliceInfo.sliceInfo.sliceId} already received by DC")
       }
 
       else {
+
         log.info("TimeActor::DataCenterActor:SendTimeSliceInfo")
         mapSliceIdToHostCountRem=mapSliceIdToHostCountRem + (sendTimeSliceInfo.sliceInfo.sliceId -> hostList.size)
 
@@ -295,14 +301,18 @@ class DataCenterActor(id: Long,
     case timeSliceCompleted: TimeSliceCompleted =>{
       log.info("HostActor::DataCenterActor:TimeSliceCompleted")
 
+      if(timeSliceCompleted.continueSimulation){
+        continueSimulation=timeSliceCompleted.continueSimulation
+      }
+
       mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId)
         .foreach(count => mapSliceIdToHostCountRem=mapSliceIdToHostCountRem +
           (timeSliceCompleted.timeSliceInfo.sliceId -> (count-1)))
 
       mapSliceIdToHostCountRem.get(timeSliceCompleted.timeSliceInfo.sliceId)
         .filter(_==0)
-        .foreach(_ => context.actorSelection(ActorUtility.getActorRef("time-actor")) !
-          TimeSliceCompleted(timeSliceCompleted.timeSliceInfo))
+        .foreach(_ => context.actorSelection(ActorUtility.getActorRef(ActorUtility.timeActor)) !
+          TimeSliceCompleted(timeSliceCompleted.timeSliceInfo,continueSimulation))
 
 
     }

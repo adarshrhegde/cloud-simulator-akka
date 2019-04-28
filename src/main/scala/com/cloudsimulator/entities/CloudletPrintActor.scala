@@ -13,7 +13,6 @@ import scala.concurrent.Await
 class CloudletPrintActor extends Actor with ActorLogging {
 
   var finishedCloudlets: Seq[CloudletExecution]=Seq()
-//  val writer = new PrintWriter("output.txt")
 
   override def receive: Receive = {
 
@@ -26,27 +25,36 @@ class CloudletPrintActor extends Actor with ActorLogging {
           finishedCloudlets=finishedCloudlets :+ cloudlet
         }
       })
-      if(cloudletsExecution.count(_.remWorkloadLength>0)==0){
-        log.info(s"Cloudlet-id \t Status \t DC-id \t Host-id \t Time Slice \t Delay(s) \t Cost(USD)")
-//        writer.write(s"Cloudlet-id \t Status \t DC-id \t Host-id \t Time Slice \t Delay(s) \t Cost(USD)")
-        finishedCloudlets.foreach(cloudlet=>{
-          val timeSliceUsed=cloudlet.timeSliceUsageInfo.foldLeft(0.0)((sum,ts)=>{sum+ts.sliceLengthUsedInSeconds})
-          log.info(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t $timeSliceUsed \t ${cloudlet.delay} \t ${cloudlet.cost}")
-//          writer.write(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t $timeSliceUsed \t ${cloudlet.delay} \t ${cloudlet.cost}")
-        })
-        log.info(s"CloudPrintActor::SimulationCompleted")
-        context.system.actorSelection(ActorUtility.timeActor) ! SimulationCompleted
+//      if(cloudletsExecution.count(_.remWorkloadLength>0)==0){
 
-        Await.result(context.system.terminate(),3 seconds)
+        //send to TimeActor that all cloudlets have completed their workload
+        //once TimeActor responds, then we print the cloudlets and shutdown the system.
 
-      }
+//        context.actorSelection(ActorUtility.getActorRef(ActorUtility.timeActor)) ! AllCloudletsExecutionCompleted()
+//      }
 
     }
 
-    case _ => {
+    case PrintAllCloudletsAfterTimeSliceCompleted =>{
+
+      log.info(s"Cloudlet-id \t Status \t DC-id \t Host-id \t Time Slice \t Delay(s) \t Actual Workload \t Cost(USD)")
+      finishedCloudlets.foreach(cloudlet=>{
+        val timeSliceUsed=cloudlet.timeSliceUsageInfo.foldLeft(0.0)((sum,ts)=>{sum+ts.sliceLengthUsedInSeconds})
+        log.info(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t $timeSliceUsed \t ${cloudlet.delay} \t ${cloudlet.actualWorkloadLength} ${cloudlet.cost}")
+      })
+      log.info(s"CloudPrintActor::SimulationCompleted")
+//      context.system.actorSelection(ActorUtility.timeActor) ! SimulationCompleted
+
+      Await.result(context.system.terminate(),3 seconds)
+
 
     }
+
   }
 }
 
 case class PrintCloudletsExectionStatus(cloudletsExecution: Seq[CloudletExecution])
+
+case class PrintAllCloudletsAfterTimeSliceCompleted()
+
+case class AllCloudletsExecutionCompleted()

@@ -35,6 +35,11 @@ case class TimeSharedCloudletScheduler() extends CloudletScheduler {
       val newRemWorkloadLength = cloudlet.remWorkloadLength -
         mips * noOfPes * timeSliceForEachCloudlet
 
+      var status = CloudletPayloadStatus.RUNNING
+
+      if (newRemWorkloadLength <= 0) {
+        status = CloudletPayloadStatus.COMPLETED
+      }
 
       val newExecEndTime: Long = Option(cloudlet.execEndTime) match {
         case Some(-1.0) => {
@@ -53,8 +58,8 @@ case class TimeSharedCloudletScheduler() extends CloudletScheduler {
         newTimeSliceUsageInfo,
         cloudlet.delay, cloudlet.dcId,
         cloudlet.hostId, cloudlet.vmId, newExecStartTime, newExecEndTime,
-        CloudletPayloadStatus.RUNNING,
-        newRemWorkloadLength, newCost)
+        status,
+        newRemWorkloadLength, cloudlet.actualWorkloadLength, newCost)
     })
   }
 }

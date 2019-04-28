@@ -156,7 +156,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
 
       } else {
         // no VMs in the host. Send completion message back
-        sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo)
+        sender() ! TimeSliceCompleted(sendTimeSliceInfo.sliceInfo,false)
       }
 
     }
@@ -185,7 +185,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       */
     case timeSliceCompleted: TimeSliceCompleted =>{
       log.info("VmSchedulerActor::HostActor:TimeSliceCompleted")
-      context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo)
+      context.parent ! TimeSliceCompleted(timeSliceCompleted.timeSliceInfo,timeSliceCompleted.continueSimulation)
     }
   }
 }
