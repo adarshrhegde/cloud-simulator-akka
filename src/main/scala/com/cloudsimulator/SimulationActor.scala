@@ -34,6 +34,8 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
   var deviceToSwitchMapping : Map[String, String] = Map()
 
+  var receivedVmCreationConfirmation : Boolean = false
+
 
   override def preStart(): Unit = {
     log.info(s"Starting the cloud simulation")
@@ -142,11 +144,16 @@ class SimulationActor(id:Int) extends Actor with ActorLogging {
 
     case vmCreationConfirmation: VMCreationConfirmation => {
 
-      log.info(s"LoadBalancerActor::SimulationActor:VMCreationConfirmation:${vmCreationConfirmation.requestId}")
+      if(!receivedVmCreationConfirmation) {
 
-      log.info("Completed VM allocation at " + Calendar.getInstance().getTime)
+        receivedVmCreationConfirmation = true
 
-      self ! SendCloudletPayload(config.cloudletPayloadList)
+        log.info(s"LoadBalancerActor::SimulationActor:VMCreationConfirmation:${vmCreationConfirmation.requestId}")
+
+        log.info("Completed VM allocation at " + Calendar.getInstance().getTime)
+
+        self ! SendCloudletPayload(config.cloudletPayloadList)
+      }
 
     }
 

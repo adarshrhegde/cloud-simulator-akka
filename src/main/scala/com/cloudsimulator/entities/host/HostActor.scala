@@ -137,7 +137,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
         }).filter(cloudlet=>{vmIdToRefMap.contains(cloudlet.vmId)})
 
       //send response(new cloudlets) back to the DC
-      checkHostForRequiredVMs.networkPacketProperties.swapSenderReceiver()
+      val networkPacketProperties = checkHostForRequiredVMs.networkPacketProperties.swapSenderReceiver()
 
       sender() ! HostCheckedForRequiredVms(checkHostForRequiredVMs.networkPacketProperties,
         checkHostForRequiredVMs.id, cloudlets)
