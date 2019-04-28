@@ -61,6 +61,7 @@ class VmSchedulerActor(vmScheduler: VmScheduler) extends Actor with ActorLogging
     case CheckCanSchedule => {
 
       if(!sliceToHasScheduledMap.getOrElse(slice.sliceId, true) &&
+        vmRequirementList.size > 0 &&
         vmActorPaths.size == vmRequirementList.size) {
 
         sliceToHasScheduledMap = sliceToHasScheduledMap + (slice.sliceId -> true)
