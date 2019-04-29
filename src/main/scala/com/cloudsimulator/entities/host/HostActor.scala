@@ -139,7 +139,7 @@ class HostActor(id : Long, dataCenterId : Long, hypervisor : String, bwProvision
       //send response(new cloudlets) back to the DC
       val networkPacketProperties = checkHostForRequiredVMs.networkPacketProperties.swapSenderReceiver()
 
-      sender() ! HostCheckedForRequiredVms(checkHostForRequiredVMs.networkPacketProperties,
+      sender() ! HostCheckedForRequiredVms(networkPacketProperties,
         checkHostForRequiredVMs.id, cloudlets)
     }
 

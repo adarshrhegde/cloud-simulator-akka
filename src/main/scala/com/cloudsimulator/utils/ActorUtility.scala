@@ -20,6 +20,8 @@ object ActorUtility {
   val aggregateSwitch = "aggregate-"
   val cloudletPrintActor ="cloudlet-print-actor"
 
+  val simActorId=1
+
 
   def getActorRef(actorPath: String): String = {
     s"akka://$actorSystemName/user/$simulationActor/$actorPath"
