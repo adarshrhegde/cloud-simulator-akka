@@ -21,7 +21,7 @@ class CloudletPrintActor extends Actor with ActorLogging {
       cloudletsExecution.foreach(cloudlet => {
 //        log.info(s"Cloudlet-id \t Status \t DC-id \t Host-id \t Remaining Workload length \t Time Slice Info \t Delay(s) \t Cost(USD)")
 //        log.info(s"${cloudlet.id} \t ${cloudlet.status} \t ${cloudlet.dcId} \t ${cloudlet.hostId} \t ${cloudlet.remWorkloadLength} \t ${cloudlet.timeSliceUsageInfo} \t ${cloudlet.delay} \t ${cloudlet.cost}")
-        if(cloudlet.remWorkloadLength==0){
+        if(cloudlet.remWorkloadLength<=0){
           finishedCloudlets=finishedCloudlets :+ cloudlet
         }
       })
